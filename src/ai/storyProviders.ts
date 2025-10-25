@@ -141,54 +141,123 @@ export class GeminiProvider implements AIProvider {
     this.apiKey = apiKey;
   }
 
+  async listAvailableModels(): Promise<string[]> {
+    try {
+      console.log('🔍 Listing available Gemini models...');
+      
+      // Try both API versions
+      const apiVersions = ['v1', 'v1beta'];
+      const availableModels: string[] = [];
+      
+      for (const apiVersion of apiVersions) {
+        try {
+          console.log(`🔍 Checking models for API version: ${apiVersion}`);
+          
+          const response = await fetch(`https://generativelanguage.googleapis.com/${apiVersion}/models?key=${this.apiKey}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.models) {
+            console.log(`🔍 Found ${data.models.length} models in ${apiVersion}:`);
+            data.models.forEach((model: any) => {
+              console.log(`🔍 - ${model.name}`);
+              if (model.name.includes('gemini')) {
+                availableModels.push(model.name);
+              }
+            });
+          } else {
+            console.log(`🔍 API ${apiVersion} failed:`, data.error?.message || 'Unknown error');
+          }
+        } catch (error) {
+          console.log(`🔍 API ${apiVersion} error:`, error);
+        }
+      }
+      
+      console.log('🔍 Available Gemini models:', availableModels);
+      return availableModels;
+    } catch (error) {
+      console.error('🔍 Error listing models:', error);
+      return [];
+    }
+  }
+
   async generateStory(request: StoryGenerationRequest): Promise<StoryGenerationResponse> {
     try {
       const prompt = this.buildPrompt(request);
       
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.apiKey}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: prompt
-            }]
-          }]
-        }),
-      });
+      // Try different Gemini models and API versions based on available models
+      const modelConfigs = [
+        { model: 'gemini-2.5-pro', apiVersion: 'v1' },
+        { model: 'gemini-2.5-flash', apiVersion: 'v1' },
+        { model: 'gemini-2.0-flash', apiVersion: 'v1' },
+        { model: 'gemini-2.5-pro', apiVersion: 'v1beta' },
+        { model: 'gemini-2.5-flash', apiVersion: 'v1beta' }
+      ];
+      let lastError = null;
+      
+      for (const config of modelConfigs) {
+        try {
+          console.log(`🔑 Trying Gemini model: ${config.model} with API ${config.apiVersion}`);
+          
+          const response = await fetch(`https://generativelanguage.googleapis.com/${config.apiVersion}/models/${config.model}:generateContent?key=${this.apiKey}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: prompt
+                }]
+              }]
+            }),
+          });
 
-      const data = await response.json();
+          const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error?.message || 'Gemini API error');
+          if (!response.ok) {
+            throw new Error(data.error?.message || 'Gemini API error');
+          }
+
+          const content = data.candidates[0]?.content?.parts[0]?.text;
+          if (!content) {
+            throw new Error('No content generated');
+          }
+
+          // Basic content moderation
+          if (!(await this.moderateContent(content))) {
+            throw new Error('Content failed moderation');
+          }
+
+          console.log(`🔑 Gemini model ${config.model} with API ${config.apiVersion} succeeded!`);
+          return {
+            success: true,
+            chapter: {
+              id: '', // Will be set by caller
+              child_id: request.childId,
+              chapter_number: request.chapterNumber,
+              title: this.extractTitle(content),
+              content: content,
+              world_theme: request.worldTheme,
+              unlocked_at: new Date().toISOString(),
+              is_read: false,
+              created_at: new Date().toISOString(),
+            },
+          };
+        } catch (modelError) {
+          console.log(`🔑 Gemini model ${config.model} with API ${config.apiVersion} failed:`, modelError);
+          lastError = modelError;
+          continue; // Try next model
+        }
       }
-
-      const content = data.candidates[0]?.content?.parts[0]?.text;
-      if (!content) {
-        throw new Error('No content generated');
-      }
-
-      // Basic content moderation
-      if (!(await this.moderateContent(content))) {
-        throw new Error('Content failed moderation');
-      }
-
-      return {
-        success: true,
-        chapter: {
-          id: '', // Will be set by caller
-          child_id: request.childId,
-          chapter_number: request.chapterNumber,
-          title: this.extractTitle(content),
-          content: content,
-          world_theme: request.worldTheme,
-          unlocked_at: new Date().toISOString(),
-          is_read: false,
-          created_at: new Date().toISOString(),
-        },
-      };
+      
+      // If all models failed, throw the last error
+      throw lastError || new Error('All Gemini models failed');
     } catch (error) {
       console.error('Gemini generation error:', error);
       return {

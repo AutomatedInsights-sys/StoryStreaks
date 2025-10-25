@@ -13,23 +13,41 @@ export class AIStoryService {
   }
 
   private initializeProviders() {
+    console.log('🔑 Initializing AI providers...');
+    console.log('🔑 Default provider:', this.defaultProvider);
+    console.log('🔑 Expo config extra:', Constants.expoConfig?.extra);
+    
     // Initialize OpenAI
     const openaiKey = Constants.expoConfig?.extra?.openaiApiKey || process.env.EXPO_PUBLIC_OPENAI_API_KEY;
-    if (openaiKey) {
+    console.log('🔑 OpenAI key found:', !!openaiKey, openaiKey ? `${openaiKey.substring(0, 10)}...` : 'none');
+    if (openaiKey && !openaiKey.includes('your-') && !openaiKey.includes('sk-your-')) {
       this.providers.set('openai', new OpenAIProvider(openaiKey));
+      console.log('🔑 OpenAI provider initialized');
     }
 
-    // Initialize Gemini
-    const geminiKey = Constants.expoConfig?.extra?.geminiApiKey || process.env.EXPO_PUBLIC_GEMINI_API_KEY;
-    if (geminiKey) {
+    // Initialize Gemini - Prioritize environment variables over app.json
+    const geminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || Constants.expoConfig?.extra?.geminiApiKey;
+    console.log('🔑 Gemini key found:', !!geminiKey, geminiKey ? `${geminiKey.substring(0, 10)}...` : 'none');
+    console.log('🔑 Gemini key from app.json:', Constants.expoConfig?.extra?.geminiApiKey);
+    console.log('🔑 Gemini key from env:', process.env.EXPO_PUBLIC_GEMINI_API_KEY);
+    
+    if (geminiKey && !geminiKey.includes('your-') && geminiKey.length > 10) {
       this.providers.set('gemini', new GeminiProvider(geminiKey));
+      console.log('🔑 Gemini provider initialized');
+    } else {
+      console.log('🔑 Gemini provider NOT initialized - key invalid or missing');
     }
 
     // Initialize Claude
     const claudeKey = Constants.expoConfig?.extra?.claudeApiKey || process.env.EXPO_PUBLIC_CLAUDE_API_KEY;
-    if (claudeKey) {
+    console.log('🔑 Claude key found:', !!claudeKey, claudeKey ? `${claudeKey.substring(0, 10)}...` : 'none');
+    if (claudeKey && !claudeKey.includes('your-')) {
       this.providers.set('claude', new ClaudeProvider(claudeKey));
+      console.log('🔑 Claude provider initialized');
     }
+    
+    console.log('🔑 Total providers initialized:', this.providers.size);
+    console.log('🔑 Available providers:', Array.from(this.providers.keys()));
   }
 
   async generateStory(request: StoryGenerationRequest): Promise<StoryGenerationResponse> {
@@ -42,6 +60,8 @@ export class AIStoryService {
           error: `No AI provider configured for: ${this.defaultProvider}`,
         };
       }
+
+      // If it's Gemini, we now know the available models from the listing
 
       // Generate story with primary provider
       let result = await provider.generateStory(request);
@@ -63,6 +83,7 @@ export class AIStoryService {
 
       // If all providers fail, use curated fallback
       if (!result.success) {
+        console.log('📚 All AI providers failed, using fallback story');
         return await this.generateFallbackStory(request);
       }
 
@@ -154,6 +175,9 @@ export class AIStoryService {
 
   async unlockStoryForChores(childId: string, completedChoreIds: string[]): Promise<StoryChapter | null> {
     try {
+      console.log('📚 Starting story generation for child:', childId);
+      console.log('📚 Completed chore IDs:', completedChoreIds);
+      
       // Get child info
       const { data: child, error: childError } = await supabase
         .from('children')
@@ -162,9 +186,11 @@ export class AIStoryService {
         .single();
 
       if (childError || !child) {
-        console.error('Error fetching child:', childError);
+        console.error('📚 Error fetching child:', childError);
         return null;
       }
+
+      console.log('📚 Child info:', { name: child.name, world_theme: child.world_theme });
 
       // Get completed chores
       const { data: chores, error: choresError } = await supabase
@@ -180,9 +206,11 @@ export class AIStoryService {
         .eq('status', 'approved');
 
       if (choresError || !chores) {
-        console.error('Error fetching chores:', choresError);
+        console.error('📚 Error fetching chores:', choresError);
         return null;
       }
+
+      console.log('📚 Found completed chores:', chores.length);
 
       // Get current story progress
       const { data: progress } = await supabase
@@ -192,7 +220,23 @@ export class AIStoryService {
         .eq('world_theme', child.world_theme)
         .single();
 
-      const currentChapter = (progress?.current_chapter || 0) + 1;
+      // Get the highest existing chapter number for this child
+      const { data: existingChapters } = await supabase
+        .from('story_chapters')
+        .select('chapter_number')
+        .eq('child_id', childId)
+        .eq('world_theme', child.world_theme)
+        .order('chapter_number', { ascending: false })
+        .limit(1);
+
+      const highestChapter = existingChapters?.[0]?.chapter_number || 0;
+      const currentChapter = highestChapter + 1;
+      
+      console.log('📚 Chapter calculation:', {
+        existingProgress: progress,
+        highestExistingChapter: highestChapter,
+        newChapterNumber: currentChapter
+      });
       const completedChoreTitles = chores.map(c => c.chores?.title || 'completed chore');
 
       // Get previous chapter summary if exists
@@ -214,9 +258,18 @@ export class AIStoryService {
         chapterNumber: currentChapter,
       };
 
+      console.log('📚 Generating story with request:', {
+        childName: request.childName,
+        worldTheme: request.worldTheme,
+        chapterNumber: request.chapterNumber,
+        completedChores: request.completedChores
+      });
+
       const result = await this.generateStory(request);
       
       if (result.success && result.chapter) {
+        console.log('📚 Story generated successfully:', result.chapter.title);
+        
         // Update story progress
         await this.updateStoryProgress(childId, child.world_theme, currentChapter);
         
@@ -224,51 +277,102 @@ export class AIStoryService {
         await this.createStoryUnlockNotification(childId, result.chapter.title);
         
         return result.chapter;
+      } else {
+        console.warn('📚 Story generation failed:', result.error);
+        return null;
       }
-
-      return null;
     } catch (error) {
-      console.error('Error in unlockStoryForChores:', error);
+      console.error('📚 Error in unlockStoryForChores:', error);
+      
+      // Try to generate a fallback story if AI generation fails
+      try {
+        console.log('📚 Attempting fallback story generation...');
+        const fallbackRequest: StoryGenerationRequest = {
+          childId,
+          childName: 'Child', // Default name if we can't fetch child info
+          ageBracket: '4-6',
+          worldTheme: 'magical_forest',
+          completedChores: ['completed chore'],
+          chapterNumber: 1,
+        };
+        
+        const fallbackResult = await this.generateFallbackStory(fallbackRequest);
+        if (fallbackResult.success && fallbackResult.chapter) {
+          console.log('📚 Fallback story generated successfully');
+          return fallbackResult.chapter;
+        }
+      } catch (fallbackError) {
+        console.error('📚 Fallback story generation also failed:', fallbackError);
+      }
+      
       return null;
     }
   }
 
   private async updateStoryProgress(childId: string, worldTheme: string, chapterNumber: number) {
     try {
-      const { error } = await supabase
+      // First, try to get existing progress
+      const { data: existingProgress } = await supabase
         .from('story_progress')
-        .upsert({
-          child_id: childId,
-          world_theme: worldTheme,
-          current_chapter: chapterNumber,
-          total_chapters_unlocked: chapterNumber,
-        });
+        .select('*')
+        .eq('child_id', childId)
+        .eq('world_theme', worldTheme)
+        .single();
 
-      if (error) {
-        console.error('Error updating story progress:', error);
+      if (existingProgress) {
+        // Update existing progress
+        const { error } = await supabase
+          .from('story_progress')
+          .update({
+            current_chapter: Math.max(existingProgress.current_chapter, chapterNumber),
+            total_chapters_unlocked: Math.max(existingProgress.total_chapters_unlocked, chapterNumber),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('child_id', childId)
+          .eq('world_theme', worldTheme);
+
+        if (error) {
+          console.error('📚 Error updating existing story progress:', error);
+        } else {
+          console.log('📚 Story progress updated successfully');
+        }
+      } else {
+        // Create new progress record
+        const { error } = await supabase
+          .from('story_progress')
+          .insert({
+            child_id: childId,
+            world_theme: worldTheme,
+            current_chapter: chapterNumber,
+            total_chapters_unlocked: chapterNumber,
+          });
+
+        if (error) {
+          console.error('📚 Error creating new story progress:', error);
+        } else {
+          console.log('📚 New story progress created successfully');
+        }
       }
     } catch (error) {
-      console.error('Error in updateStoryProgress:', error);
+      console.error('📚 Error in updateStoryProgress:', error);
     }
   }
 
   private async createStoryUnlockNotification(childId: string, chapterTitle: string) {
     try {
-      const { error } = await supabase
-        .from('notifications')
-        .insert({
-          user_id: childId,
-          type: 'story_unlock',
-          title: 'New Story Unlocked!',
-          message: `A new chapter "${chapterTitle}" is ready to read!`,
-          data: { chapterTitle },
-        });
-
-      if (error) {
-        console.error('Error creating story unlock notification:', error);
+      // Use the NotificationService instead of direct database insert
+      // This handles RLS policies properly
+      const { NotificationService } = await import('./notificationService');
+      
+      const notification = await NotificationService.notifyStoryUnlock(childId, chapterTitle);
+      
+      if (notification) {
+        console.log('📚 Story unlock notification created successfully');
+      } else {
+        console.warn('📚 Failed to create story unlock notification');
       }
     } catch (error) {
-      console.error('Error in createStoryUnlockNotification:', error);
+      console.error('📚 Error in createStoryUnlockNotification:', error);
     }
   }
 }

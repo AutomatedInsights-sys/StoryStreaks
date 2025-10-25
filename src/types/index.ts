@@ -9,6 +9,8 @@ export interface Profile {
   age_bracket?: '4-6' | '7-8' | '9-10';
   avatar_url?: string;
   world_theme?: StoryWorld;
+  parent_pin?: string;
+  pin_last_verified?: string;
   created_at: string;
   updated_at: string;
 }
@@ -122,9 +124,17 @@ export interface ChoreTemplate {
   created_at: string;
 }
 
+// Profile Selection Types
+export interface ProfileSelectionState {
+  selectedProfile: 'parent' | Child | null;
+  isPinVerified: boolean;
+  pinVerifiedAt: Date | null;
+}
+
 // Navigation Types
 export type RootStackParamList = {
   Auth: undefined;
+  ProfileSelection: undefined;
   ParentStack: undefined;
   ChildStack: { childId: string };
 };
@@ -134,6 +144,7 @@ export type ParentStackParamList = {
   ChoreManagement: undefined;
   ChildProfiles: undefined;
   Settings: undefined;
+  Analytics: undefined;
   CreateChore: undefined;
   EditChore: { choreId: string };
   ChoreApproval: undefined;
@@ -145,9 +156,11 @@ export type ParentStackParamList = {
 export type ChildStackParamList = {
   ChildHome: undefined;
   ChoreDetail: { choreId: string };
+  StoriesList: undefined;
   StoryReader: { chapterId: string };
   Rewards: undefined;
   MyProgress: undefined;
+  Achievements: undefined;
 };
 
 // Form Types

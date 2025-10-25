@@ -7,13 +7,23 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "extra": {
+      "defaultAIProvider": "gemini",
+      "openaiApiKey": "sk-your-openai-key-here",
+      "geminiApiKey": "AIzaSyDm8auXuWAfTvR6zTMMX1Als3sJh6OS0CY",
+      "claudeApiKey": "your-claude-key-here"
+    },
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to take photos for chore completion.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photo library to select photos for chore completion."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,10 +31,24 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them for chore completion.",
+          "cameraPermission": "The app accesses your camera to let you take photos for chore completion."
+        }
+      ]
+    ]
   }
 }

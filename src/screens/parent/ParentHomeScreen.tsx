@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,42 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { Child } from '../../types';
+import { supabase } from '../../services/supabase';
 import { theme } from '../../utils/theme';
 
 export default function ParentHomeScreen({ navigation }: any) {
   const { user, children, refreshChildren } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+
+  const fetchPendingApprovalsCount = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { count, error } = await supabase
+        .from('chore_completions')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+
+      if (error) {
+        console.error('Error fetching pending approvals count:', error);
+        return;
+      }
+
+      setPendingApprovalsCount(count || 0);
+    } catch (error) {
+      console.error('Error fetching pending approvals count:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingApprovalsCount();
+  }, [user?.id]);
 
   const onRefresh = async () => {
     setIsRefreshing(true);
     await refreshChildren();
+    await fetchPendingApprovalsCount();
     setIsRefreshing(false);
   };
 
@@ -71,7 +98,14 @@ export default function ParentHomeScreen({ navigation }: any) {
           style={styles.actionButton}
           onPress={() => navigation.navigate('ChoreApproval')}
         >
-          <Text style={styles.actionButtonText}>Review Chores</Text>
+          <View style={styles.actionButtonContent}>
+            <Text style={styles.actionButtonText}>Review Chores</Text>
+            {pendingApprovalsCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{pendingApprovalsCount}</Text>
+              </View>
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -134,9 +168,28 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
+  actionButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
+  },
   actionButtonText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: 'bold',
+  },
+  badge: {
+    backgroundColor: theme.colors.error,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
     fontWeight: 'bold',
   },
   childrenSection: {

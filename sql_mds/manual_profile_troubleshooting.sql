@@ -122,3 +122,4 @@ SELECT * FROM profiles WHERE id = '6d726330-c21f-47c7-addd-9394e0e041ee';
 -- Should return 1 row with the profile data
 
 
+

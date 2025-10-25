@@ -1,15 +1,25 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { AppState } from 'react-native';
 import { supabase } from '../services/supabase';
-import { Child, AuthState } from '../types';
+import { Child, AuthState, ProfileSelectionState } from '../types';
 import { Session, AuthChangeEvent } from '@supabase/supabase-js';
 
-interface AuthContextType extends AuthState {
+interface AuthContextType extends AuthState, ProfileSelectionState {
   signUp: (email: string, password: string, name: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   createChild: (childData: { name: string; age: number; world_theme: string }) => Promise<{ error: string | null }>;
   switchChild: (childId: string) => void;
   refreshChildren: () => Promise<void>;
+  
+  // Profile selection methods
+  selectProfile: (profile: 'parent' | Child) => void;
+  selectProfileWithPin: (pin: string) => Promise<boolean>;
+  verifyPin: (pin: string) => Promise<boolean>;
+  verifyPassword: (password: string) => Promise<boolean>;
+  setParentPin: (pin: string) => Promise<boolean>;
+  checkPinTimeout: () => boolean;
+  clearPinVerification: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,6 +35,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     currentChild: null,
     isLoading: true,
     isAuthenticated: false,
+  });
+
+  const [profileSelection, setProfileSelection] = useState<ProfileSelectionState>({
+    selectedProfile: null,
+    isPinVerified: false,
+    pinVerifiedAt: null,
   });
 
   useEffect(() => {
@@ -54,11 +70,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
             isLoading: false,
             isAuthenticated: false,
           });
+          // Clear profile selection on sign out
+          setProfileSelection({
+            selectedProfile: null,
+            isPinVerified: false,
+            pinVerifiedAt: null,
+          });
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    // Listen for app state changes to clear PIN verification
+    const handleAppStateChange = (nextAppState: string) => {
+      console.log('🔐 AuthContext: App state changed to:', nextAppState);
+      // Only clear PIN verification when app goes to background, not inactive
+      if (nextAppState === 'background') {
+        console.log('🔐 AuthContext: App went to background, clearing PIN verification');
+        clearPinVerification();
+      }
+    };
+
+    const appStateSubscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.unsubscribe();
+      appStateSubscription?.remove();
+    };
   }, []);
 
   const loadUserProfile = async (userId: string): Promise<boolean> => {
@@ -263,14 +300,197 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  // Profile selection methods
+  const selectProfileWithPin = async (pin: string): Promise<boolean> => {
+    const isValid = await verifyPin(pin);
+    if (isValid) {
+      setProfileSelection(prev => ({
+        ...prev,
+        selectedProfile: 'parent',
+        isPinVerified: true,
+        pinVerifiedAt: new Date(),
+      }));
+    }
+    return isValid;
+  };
+
+  const selectProfile = (profile: 'parent' | Child) => {
+    console.log('🔐 AuthContext: Selecting profile:', profile);
+    console.log('🔐 AuthContext: Current profileSelection state:', profileSelection);
+    
+    setProfileSelection(prev => {
+      const newState = {
+        ...prev,
+        selectedProfile: profile,
+        // For children, clear PIN verification for security
+        // For parents, preserve PIN verification state (will be handled by ProfileSwitcher)
+        isPinVerified: profile !== 'parent' ? false : prev.isPinVerified,
+        pinVerifiedAt: profile !== 'parent' ? null : prev.pinVerifiedAt,
+      };
+      console.log('🔐 AuthContext: New profileSelection state:', newState);
+      return newState;
+    });
+  };
+
+  const verifyPin = async (pin: string): Promise<boolean> => {
+    if (!authState.user?.parent_pin) {
+      return false;
+    }
+
+    try {
+      // Simple comparison - in production, you'd want to hash the PIN
+      const isValid = authState.user.parent_pin === pin;
+      
+      if (isValid) {
+        const now = new Date();
+        setProfileSelection(prev => ({
+          ...prev,
+          isPinVerified: true,
+          pinVerifiedAt: now,
+        }));
+
+        // Update database with verification timestamp
+        await supabase
+          .from('profiles')
+          .update({ pin_last_verified: now.toISOString() })
+          .eq('id', authState.user!.id);
+      }
+
+      return isValid;
+    } catch (error) {
+      console.error('Error verifying PIN:', error);
+      return false;
+    }
+  };
+
+  const verifyPassword = async (password: string): Promise<boolean> => {
+    if (!authState.user?.email) {
+      return false;
+    }
+
+    try {
+      // Create a temporary client to verify password without affecting current session
+      const { createClient } = await import('@supabase/supabase-js');
+      const tempSupabase = createClient(
+        process.env.EXPO_PUBLIC_SUPABASE_URL!,
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
+      );
+
+      // Attempt to sign in with the provided password
+      const { error } = await tempSupabase.auth.signInWithPassword({
+        email: authState.user.email,
+        password: password,
+      });
+
+      if (error) {
+        console.error('Password verification failed:', error);
+        return false;
+      }
+
+      // Password is correct, set PIN verification state
+      const now = new Date();
+      console.log('🔐 AuthContext: Password verified, setting PIN verification state');
+      setProfileSelection(prev => {
+        const newState = {
+          ...prev,
+          isPinVerified: true,
+          pinVerifiedAt: now,
+        };
+        console.log('🔐 AuthContext: Updated profileSelection with PIN verification:', newState);
+        return newState;
+      });
+
+      // Update database with verification timestamp
+      await supabase
+        .from('profiles')
+        .update({ pin_last_verified: now.toISOString() })
+        .eq('id', authState.user!.id);
+
+      // Sign out the temporary client to avoid session conflicts
+      await tempSupabase.auth.signOut();
+
+      return true;
+    } catch (error) {
+      console.error('Error verifying password:', error);
+      return false;
+    }
+  };
+
+  const setParentPin = async (pin: string): Promise<boolean> => {
+    if (!authState.user || authState.user.role !== 'parent') {
+      return false;
+    }
+
+    try {
+      // In production, you'd want to hash the PIN before storing
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          parent_pin: pin,
+          pin_last_verified: new Date().toISOString()
+        })
+        .eq('id', authState.user.id);
+
+      if (error) {
+        console.error('Error setting PIN:', error);
+        return false;
+      }
+
+      // Update local state
+      setAuthState(prev => ({
+        ...prev,
+        user: prev.user ? { ...prev.user, parent_pin: pin } : null,
+      }));
+
+      return true;
+    } catch (error) {
+      console.error('Error setting PIN:', error);
+      return false;
+    }
+  };
+
+  const checkPinTimeout = (): boolean => {
+    console.log('🔐 AuthContext: Checking PIN timeout...');
+    console.log('🔐 AuthContext: pinVerifiedAt:', profileSelection.pinVerifiedAt);
+    
+    if (!profileSelection.pinVerifiedAt) {
+      console.log('🔐 AuthContext: No pinVerifiedAt timestamp, returning false');
+      return false;
+    }
+
+    const now = new Date();
+    const verifiedAt = new Date(profileSelection.pinVerifiedAt);
+    const diffInMinutes = (now.getTime() - verifiedAt.getTime()) / (1000 * 60);
+
+    console.log('🔐 AuthContext: PIN timeout check - diffInMinutes:', diffInMinutes, 'isValid:', diffInMinutes < 15);
+    return diffInMinutes < 15; // 15 minute timeout
+  };
+
+  const clearPinVerification = () => {
+    console.log('🔐 AuthContext: Clearing PIN verification');
+    setProfileSelection(prev => ({
+      ...prev,
+      isPinVerified: false,
+      pinVerifiedAt: null,
+    }));
+  };
+
   const contextValue: AuthContextType = {
     ...authState,
+    ...profileSelection,
     signUp,
     signIn,
     signOut,
     createChild,
     switchChild,
     refreshChildren,
+    selectProfile,
+    selectProfileWithPin,
+    verifyPin,
+    verifyPassword,
+    setParentPin,
+    checkPinTimeout,
+    clearPinVerification,
   };
 
   return (
