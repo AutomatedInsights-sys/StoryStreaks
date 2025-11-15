@@ -28,6 +28,21 @@ const STORY_WORLDS: { value: StoryWorld; label: string; emoji: string }[] = [
   { value: 'underwater_kingdom', label: 'Underwater Kingdom', emoji: '🐠' },
 ];
 
+const PROFILE_MODES: { value: 'shared' | 'independent'; label: string; description: string; icon: string }[] = [
+  {
+    value: 'shared',
+    label: 'Shared with Parent Profile',
+    description: 'Child uses the parent profile to manage chores and stories together.',
+    icon: '👨‍👧',
+  },
+  {
+    value: 'independent',
+    label: 'Separate Child Profile',
+    description: 'Child has their own login and experience in the app.',
+    icon: '📱',
+  },
+];
+
 export default function ChildDetailScreen() {
   const navigation = useNavigation<ChildDetailScreenNavigationProp>();
   const route = useRoute<ChildDetailScreenRouteProp>();
@@ -41,6 +56,7 @@ export default function ChildDetailScreen() {
     name: '',
     age: 0,
     world_theme: 'magical_forest' as StoryWorld,
+    profile_mode: 'independent' as 'shared' | 'independent',
   });
   const [saving, setSaving] = useState(false);
 
@@ -53,6 +69,7 @@ export default function ChildDetailScreen() {
         name: foundChild.name,
         age: foundChild.age,
         world_theme: foundChild.world_theme,
+        profile_mode: foundChild.profile_mode,
       });
       setLoading(false);
     } else {
@@ -80,6 +97,7 @@ export default function ChildDetailScreen() {
         name: data.name,
         age: data.age,
         world_theme: data.world_theme,
+        profile_mode: data.profile_mode,
       });
     } catch (error) {
       console.error('Error fetching child:', error);
@@ -102,6 +120,7 @@ export default function ChildDetailScreen() {
           age: editForm.age,
           age_bracket: getAgeBracket(editForm.age),
           world_theme: editForm.world_theme,
+          profile_mode: editForm.profile_mode,
         })
         .eq('id', childId);
 
@@ -121,6 +140,7 @@ export default function ChildDetailScreen() {
         age: editForm.age,
         age_bracket: getAgeBracket(editForm.age),
         world_theme: editForm.world_theme,
+        profile_mode: editForm.profile_mode,
       } : null);
 
       setEditMode(false);
@@ -212,6 +232,18 @@ export default function ChildDetailScreen() {
             <View style={styles.childInfo}>
               <Text style={styles.childName}>{child.name}</Text>
               <Text style={styles.childAge}>Age {child.age} • {child.age_bracket}</Text>
+              <Text
+                style={[
+                  styles.profileModeBadge,
+                  child.profile_mode === 'independent'
+                    ? styles.profileModeBadgeIndependent
+                    : styles.profileModeBadgeShared,
+                ]}
+              >
+                {child.profile_mode === 'independent'
+                  ? 'Separate Child Profile'
+                  : 'Shared with Parent'}
+              </Text>
               <Text style={[styles.worldTheme, { color: worldColors.primary }]}>
                 {STORY_WORLDS.find(w => w.value === child.world_theme)?.emoji} {STORY_WORLDS.find(w => w.value === child.world_theme)?.label}
               </Text>
@@ -316,6 +348,47 @@ export default function ChildDetailScreen() {
                 placeholder="Age"
                 keyboardType="numeric"
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Profile Type</Text>
+              <Text style={styles.helperText}>
+                Decide whether {child.name.split(' ')[0] || 'your child'} has their own profile or shares yours.
+              </Text>
+
+              {PROFILE_MODES.map(mode => {
+                const isSelected = editForm.profile_mode === mode.value;
+                return (
+                  <TouchableOpacity
+                    key={mode.value}
+                    style={[
+                      styles.profileModeOption,
+                      isSelected && styles.profileModeOptionSelected,
+                    ]}
+                    onPress={() => setEditForm(prev => ({ ...prev, profile_mode: mode.value }))}
+                  >
+                    <View style={styles.profileModeContent}>
+                      <Text style={styles.profileModeIcon}>{mode.icon}</Text>
+                      <View style={styles.profileModeInfo}>
+                        <Text
+                          style={[
+                            styles.profileModeLabel,
+                            isSelected && styles.profileModeLabelSelected,
+                          ]}
+                        >
+                          {mode.label}
+                        </Text>
+                        <Text style={styles.profileModeDescription}>{mode.description}</Text>
+                      </View>
+                    </View>
+                    <Ionicons
+                      name={isSelected ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={24}
+                      color={isSelected ? theme.colors.primary : theme.colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <View style={styles.inputGroup}>
@@ -426,6 +499,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.xs,
+  },
+  profileModeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: 999,
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: theme.spacing.xs,
+  },
+  profileModeBadgeIndependent: {
+    backgroundColor: `${theme.colors.primary}22`,
+    color: theme.colors.primary,
+  },
+  profileModeBadgeShared: {
+    backgroundColor: `${theme.colors.textSecondary}22`,
+    color: theme.colors.textSecondary,
   },
   worldTheme: {
     fontSize: 16,
@@ -554,6 +644,12 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
   },
+  helperText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    marginBottom: theme.spacing.sm,
+    lineHeight: 20,
+  },
   input: {
     backgroundColor: theme.colors.surface,
     borderWidth: 1,
@@ -573,6 +669,47 @@ const styles = StyleSheet.create({
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
     marginBottom: theme.spacing.sm,
+  },
+  profileModeOption: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    padding: theme.spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
+    marginBottom: theme.spacing.sm,
+  },
+  profileModeOptionSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: '#F0F9FF',
+  },
+  profileModeContent: {
+    flexDirection: 'row',
+    flex: 1,
+    marginRight: theme.spacing.md,
+  },
+  profileModeIcon: {
+    fontSize: 28,
+    marginRight: theme.spacing.md,
+  },
+  profileModeInfo: {
+    flex: 1,
+  },
+  profileModeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  profileModeLabelSelected: {
+    color: theme.colors.primary,
+  },
+  profileModeDescription: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
   },
   worldOptionSelected: {
     borderColor: theme.colors.primary,

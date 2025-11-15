@@ -42,6 +42,21 @@ const STORY_WORLDS: { value: StoryWorld; label: string; description: string; emo
   },
 ];
 
+const PROFILE_MODES: { value: 'shared' | 'independent'; label: string; description: string; icon: string }[] = [
+  {
+    value: 'shared',
+    label: 'Shared with Parent Profile',
+    description: 'Use the parent profile to complete chores and read stories together.',
+    icon: '👨‍👧',
+  },
+  {
+    value: 'independent',
+    label: 'Separate Child Profile',
+    description: 'Give your child their own login so they can access the app on their device.',
+    icon: '📱',
+  },
+];
+
 export default function CreateChildScreen() {
   const navigation = useNavigation<CreateChildScreenNavigationProp>();
   const { createChild } = useAuth();
@@ -50,6 +65,7 @@ export default function CreateChildScreen() {
     name: '',
     age: 0,
     world_theme: 'magical_forest',
+    profile_mode: 'independent',
   });
 
   const [errors, setErrors] = useState<Partial<CreateChildForm>>({});
@@ -86,6 +102,7 @@ export default function CreateChildScreen() {
         name: formData.name.trim(),
         age: formData.age,
         world_theme: formData.world_theme,
+        profile_mode: formData.profile_mode,
       });
 
       if (result.error) {
@@ -168,6 +185,50 @@ export default function CreateChildScreen() {
             </Text>
           </View>
 
+          {/* Profile Mode Selection */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Profile Type *</Text>
+            <Text style={styles.helperText}>
+              Choose whether this child will use the parent profile or have their own login.
+            </Text>
+
+            {PROFILE_MODES.map(mode => {
+              const isSelected = formData.profile_mode === mode.value;
+              return (
+                <TouchableOpacity
+                  key={mode.value}
+                  style={[
+                    styles.profileModeOption,
+                    isSelected && styles.profileModeOptionSelected,
+                  ]}
+                  onPress={() => updateFormData('profile_mode', mode.value)}
+                >
+                  <View style={styles.profileModeContent}>
+                    <Text style={styles.profileModeIcon}>{mode.icon}</Text>
+                    <View style={styles.profileModeInfo}>
+                      <Text
+                        style={[
+                          styles.profileModeLabel,
+                          isSelected && styles.profileModeLabelSelected,
+                        ]}
+                      >
+                        {mode.label}
+                      </Text>
+                      <Text style={styles.profileModeDescription}>{mode.description}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.radioButton}>
+                    {isSelected ? (
+                      <Ionicons name="checkmark-circle" size={24} color={theme.colors.primary} />
+                    ) : (
+                      <Ionicons name="ellipse-outline" size={24} color={theme.colors.textSecondary} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           {/* World Theme Selection */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Adventure World *</Text>
@@ -236,6 +297,11 @@ export default function CreateChildScreen() {
                   <Text style={styles.previewAge}>Age {formData.age} • {getAgeBracket(formData.age)}</Text>
                   <Text style={styles.previewWorld}>
                     {STORY_WORLDS.find(w => w.value === formData.world_theme)?.label}
+                  </Text>
+                  <Text style={styles.previewProfileMode}>
+                    {formData.profile_mode === 'independent'
+                      ? 'Separate child profile enabled'
+                      : 'Uses parent profile for app access'}
                   </Text>
                 </View>
                 <View style={styles.previewStats}>
@@ -378,6 +444,48 @@ const styles = StyleSheet.create({
   radioButton: {
     marginLeft: theme.spacing.md,
   },
+  profileModeOption: {
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    borderRadius: 12,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    backgroundColor: theme.colors.surface,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  profileModeOptionSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.surface,
+  },
+  profileModeContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
+    marginRight: theme.spacing.md,
+  },
+  profileModeIcon: {
+    fontSize: 32,
+    marginRight: theme.spacing.md,
+  },
+  profileModeInfo: {
+    flex: 1,
+  },
+  profileModeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.xs,
+  },
+  profileModeLabelSelected: {
+    color: theme.colors.primary,
+  },
+  profileModeDescription: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    lineHeight: 20,
+  },
   previewCard: {
     backgroundColor: theme.colors.surface,
     borderRadius: 12,
@@ -415,6 +523,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.primary,
     fontWeight: '500',
+    marginBottom: theme.spacing.xs,
+  },
+  previewProfileMode: {
+    fontSize: 13,
+    color: theme.colors.textSecondary,
   },
   previewStats: {
     flexDirection: 'row',

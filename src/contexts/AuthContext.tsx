@@ -8,7 +8,9 @@ interface AuthContextType extends AuthState, ProfileSelectionState {
   signUp: (email: string, password: string, name: string) => Promise<{ error: string | null }>;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
-  createChild: (childData: { name: string; age: number; world_theme: string }) => Promise<{ error: string | null }>;
+  createChild: (
+    childData: { name: string; age: number; world_theme: string; profile_mode: 'shared' | 'independent' }
+  ) => Promise<{ error: string | null }>;
   switchChild: (childId: string) => void;
   refreshChildren: () => Promise<void>;
   
@@ -131,10 +133,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
 
+      const firstIndependentChild = children.find(child => child.profile_mode === 'independent') || null;
+
       setAuthState({
         user: profile,
         children,
-        currentChild: children.length > 0 ? children[0] : null,
+        currentChild: firstIndependentChild,
         isLoading: false,
         isAuthenticated: true,
       });
@@ -234,7 +238,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
-  const createChild = async (childData: { name: string; age: number; world_theme: string }) => {
+  const createChild = async (
+    childData: { name: string; age: number; world_theme: string; profile_mode: 'shared' | 'independent' }
+  ) => {
     if (!authState.user || authState.user.role !== 'parent') {
       return { error: 'Only parents can create child profiles' };
     }
@@ -252,6 +258,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           parent_id: authState.user.id,
           current_streak: 0,
           total_points: 0,
+          profile_mode: childData.profile_mode,
         })
         .select()
         .single();
@@ -270,7 +277,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const switchChild = (childId: string) => {
-    const child = authState.children.find(c => c.id === childId);
+    const child = authState.children.find(c => c.id === childId && c.profile_mode === 'independent');
     if (child) {
       setAuthState(prev => ({ ...prev, currentChild: child }));
     }
@@ -282,18 +289,28 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     try {
-      const { data: childrenData, error } = await supabase
-        .from('children')
-        .select('*')
-        .eq('parent_id', authState.user.id)
-        .order('created_at', { ascending: true });
+        const { data: childrenData, error } = await supabase
+          .from('children')
+          .select('*')
+          .eq('parent_id', authState.user.id)
+          .order('created_at', { ascending: true });
 
       if (!error && childrenData) {
-        setAuthState(prev => ({
-          ...prev,
-          children: childrenData,
-          currentChild: childrenData.length > 0 ? childrenData[0] : null,
-        }));
+        const typedChildren = childrenData as Child[];
+
+        setAuthState(prev => {
+          const independentChildren = typedChildren.filter(child => child.profile_mode === 'independent');
+          const previousChildId = prev.currentChild?.id;
+          const updatedCurrentChild = previousChildId
+            ? typedChildren.find(child => child.id === previousChildId && child.profile_mode === 'independent')
+            : null;
+
+          return {
+            ...prev,
+            children: typedChildren,
+            currentChild: updatedCurrentChild || independentChildren[0] || null,
+          };
+        });
       }
     } catch (error) {
       console.error('Error refreshing children:', error);
@@ -317,7 +334,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const selectProfile = (profile: 'parent' | Child) => {
     console.log('🔐 AuthContext: Selecting profile:', profile);
     console.log('🔐 AuthContext: Current profileSelection state:', profileSelection);
-    
+
+    if (profile !== 'parent') {
+      setAuthState(prev => ({
+        ...prev,
+        currentChild: profile.profile_mode === 'independent' ? profile : prev.currentChild,
+      }));
+    }
+
     setProfileSelection(prev => {
       const newState = {
         ...prev,

@@ -84,13 +84,23 @@ export default function ChildProfilesScreen() {
         onPress={() => navigation.navigate('ChildDetail', { childId: item.id })}
       >
         <View style={styles.childHeader}>
-          <View style={styles.childInfo}>
-            <Text style={styles.childName}>{item.name}</Text>
-            <Text style={styles.childAge}>Age {item.age} • {item.age_bracket}</Text>
-            <Text style={[styles.worldTheme, { color: worldColors.primary }]}>
-              {item.world_theme.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-            </Text>
-          </View>
+        <View style={styles.childInfo}>
+          <Text style={styles.childName}>{item.name}</Text>
+          <Text style={styles.childAge}>Age {item.age} • {item.age_bracket}</Text>
+          <Text
+            style={[
+              styles.profileModeBadge,
+              item.profile_mode === 'independent'
+                ? styles.profileModeBadgeIndependent
+                : styles.profileModeBadgeShared,
+            ]}
+          >
+            {item.profile_mode === 'independent' ? 'Separate Child Profile' : 'Shared with Parent'}
+          </Text>
+          <Text style={[styles.worldTheme, { color: worldColors.primary }]}>
+            {item.world_theme.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+          </Text>
+        </View>
           <View style={styles.childStats}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{item.current_streak}</Text>
@@ -311,6 +321,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     textTransform: 'capitalize',
+  },
+  profileModeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: 999,
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: theme.spacing.xs,
+  },
+  profileModeBadgeIndependent: {
+    backgroundColor: `${theme.colors.primary}22`,
+    color: theme.colors.primary,
+  },
+  profileModeBadgeShared: {
+    backgroundColor: `${theme.colors.textSecondary}22`,
+    color: theme.colors.textSecondary,
   },
   childStats: {
     flexDirection: 'row',

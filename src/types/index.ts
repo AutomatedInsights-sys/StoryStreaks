@@ -25,6 +25,7 @@ export interface Child {
   parent_id: string;
   current_streak: number;
   total_points: number;
+  profile_mode: 'shared' | 'independent';
   created_at: string;
   updated_at: string;
 }
@@ -169,6 +170,7 @@ export interface CreateChildForm {
   age: number;
   world_theme: StoryWorld;
   avatar?: File;
+  profile_mode: 'shared' | 'independent';
 }
 
 export interface CreateChoreForm {

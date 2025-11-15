@@ -58,6 +58,7 @@ export interface Database {
           parent_id: string;
           current_streak: number;
           total_points: number;
+          profile_mode: 'shared' | 'independent';
           created_at: string;
           updated_at: string;
         };
@@ -71,6 +72,7 @@ export interface Database {
           parent_id: string;
           current_streak?: number;
           total_points?: number;
+          profile_mode?: 'shared' | 'independent';
           created_at?: string;
           updated_at?: string;
         };
@@ -84,6 +86,7 @@ export interface Database {
           parent_id?: string;
           current_streak?: number;
           total_points?: number;
+          profile_mode?: 'shared' | 'independent';
           created_at?: string;
           updated_at?: string;
         };

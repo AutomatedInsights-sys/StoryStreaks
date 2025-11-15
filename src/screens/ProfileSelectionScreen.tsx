@@ -16,11 +16,14 @@ import { theme } from '../utils/theme';
 import PinModal from '../components/shared/PinModal';
 
 export default function ProfileSelectionScreen() {
-  const { user, children, selectProfile, selectProfileWithPin, verifyPin, verifyPassword } = useAuth();
+  const { user, children, selectProfile, selectProfileWithPin, verifyPassword } = useAuth();
   const [showPinModal, setShowPinModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [password, setPassword] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+
+  const independentChildren = children.filter(child => child.profile_mode === 'independent');
+  const hasSharedChildren = children.some(child => child.profile_mode === 'shared');
 
   const handleParentPress = () => {
     if (!user?.parent_pin) {
@@ -158,14 +161,16 @@ export default function ProfileSelectionScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.profilesList}>
           {renderParentCard()}
-          
-          {children.length > 0 ? (
-            children.map(renderChildCard)
+
+          {independentChildren.length > 0 ? (
+            independentChildren.map(renderChildCard)
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No Children Added</Text>
+              <Text style={styles.emptyTitle}>No Child Profiles Available</Text>
               <Text style={styles.emptyText}>
-                Add your first child in parent mode to get started!
+                {hasSharedChildren
+                  ? 'Children who share the parent profile will appear only in parent mode.'
+                  : 'Add your first child in parent mode to get started!'}
               </Text>
             </View>
           )}

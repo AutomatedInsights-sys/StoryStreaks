@@ -20,19 +20,19 @@ interface ProfileSwitcherProps {
 }
 
 export default function ProfileSwitcher({ visible, onClose }: ProfileSwitcherProps) {
-  const { 
-    user, 
-    children, 
-    selectedProfile, 
-    selectProfile, 
+  const {
+    user,
+    children,
+    selectedProfile,
+    selectProfile,
     selectProfileWithPin,
-    verifyPin, 
-    isPinVerified,
-    checkPinTimeout 
+    verifyPin,
   } = useAuth();
-  
+
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingProfile, setPendingProfile] = useState<'parent' | Child | null>(null);
+
+  const independentChildren = children.filter(child => child.profile_mode === 'independent');
 
   const handleProfileSelect = (profile: 'parent' | Child) => {
     if (profile === 'parent') {
@@ -147,7 +147,7 @@ export default function ProfileSwitcher({ visible, onClose }: ProfileSwitcherPro
 
   const profileOptions: ('parent' | Child)[] = [
     'parent',
-    ...children,
+    ...independentChildren,
   ];
 
   return (
