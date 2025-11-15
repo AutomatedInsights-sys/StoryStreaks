@@ -200,4 +200,88 @@ export class NotificationService {
       return null;
     }
   }
+
+  static async notifyRewardRedemption(childId: string, rewardId: string, parentId: string, status: 'pending' | 'approved') {
+    try {
+      const [{ data: reward }, { data: child }] = await Promise.all([
+        supabase
+          .from('rewards')
+          .select('title')
+          .eq('id', rewardId)
+          .single(),
+        supabase
+          .from('children')
+          .select('name')
+          .eq('id', childId)
+          .single(),
+      ]);
+
+      if (!reward || !child) return null;
+
+      const isAutoApproved = status === 'approved';
+      const title = isAutoApproved ? 'Reward Redeemed! 🎁' : 'Reward Request Pending';
+      const message = isAutoApproved
+        ? `${child.name} just redeemed "${reward.title}". Points have been deducted automatically.`
+        : `${child.name} wants to redeem "${reward.title}". Approve or decline their request.`;
+
+      return await this.createNotification({
+        user_id: parentId,
+        type: 'reward_request',
+        title,
+        message,
+        data: {
+          rewardId,
+          childId,
+          status,
+          type: 'reward_redemption',
+        },
+        is_read: false,
+      });
+    } catch (error) {
+      console.error('Error creating reward redemption notification:', error);
+      return null;
+    }
+  }
+
+  static async notifyRewardDecision(childId: string, rewardId: string, approved: boolean, parentNotes?: string) {
+    try {
+      const [{ data: reward }, { data: child }] = await Promise.all([
+        supabase
+          .from('rewards')
+          .select('title')
+          .eq('id', rewardId)
+          .single(),
+        supabase
+          .from('children')
+          .select('name')
+          .eq('id', childId)
+          .single(),
+      ]);
+
+      if (!reward || !child) return null;
+
+      const title = approved ? 'Reward Approved! 🎉' : 'Reward Request Denied';
+      const message = approved
+        ? `Great news! "${reward.title}" has been approved. Enjoy your reward!`
+        : `Sorry, "${reward.title}" was not approved this time${parentNotes ? `. ${parentNotes}` : ''}`;
+
+      return await this.createNotification({
+        user_id: childId,
+        type: 'reward_request',
+        title,
+        message,
+        data: {
+          rewardId,
+          childId,
+          approved,
+          parentNotes,
+          type: 'reward_decision',
+        },
+        is_read: false,
+      });
+    } catch (error) {
+      console.error('Error creating reward decision notification:', error);
+      return null;
+    }
+  }
 }

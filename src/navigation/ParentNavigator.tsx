@@ -17,6 +17,7 @@ import CreateChoreScreen from '../screens/parent/CreateChoreScreen';
 import EditChoreScreen from '../screens/parent/EditChoreScreen';
 import ChoreApprovalScreen from '../screens/parent/ChoreApprovalScreen';
 import RewardsManagementScreen from '../screens/parent/RewardsManagementScreen';
+import RewardRequestsScreen from '../screens/parent/RewardRequestsScreen';
 import ChildDetailScreen from '../screens/parent/ChildDetailScreen';
 import CreateChildScreen from '../screens/parent/CreateChildScreen';
 import AnalyticsScreen from '../screens/parent/AnalyticsScreen';
@@ -155,6 +156,11 @@ export default function ParentNavigator() {
         name="RewardsManagement" 
         component={RewardsManagementScreen}
         options={{ title: 'Rewards' }}
+      />
+      <Stack.Screen 
+        name="RewardRequests" 
+        component={RewardRequestsScreen}
+        options={{ title: 'Reward Requests' }}
       />
       <Stack.Screen 
         name="ChildDetail" 

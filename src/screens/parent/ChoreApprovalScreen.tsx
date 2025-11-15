@@ -27,7 +27,7 @@ interface ChoreCompletionWithDetails extends ChoreCompletion {
 }
 
 export default function ChoreApprovalScreen() {
-  const { user, children } = useAuth();
+  const { user, children, refreshChildren } = useAuth();
   const [completions, setCompletions] = useState<ChoreCompletionWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -108,16 +108,21 @@ export default function ChoreApprovalScreen() {
 
       // Update child's points if approved
       if (approved && selectedCompletion) {
+        const currentPoints = selectedCompletion.child.total_points ?? 0;
+        const updatedPoints = currentPoints + selectedCompletion.chore.points;
+
         const { error: pointsError } = await supabase
           .from('children')
           .update({
-            total_points: selectedCompletion.child.total_points + selectedCompletion.chore.points,
+            total_points: updatedPoints,
           })
           .eq('id', selectedCompletion.child_id);
 
         if (pointsError) {
           console.error('Error updating points:', pointsError);
         }
+
+        await refreshChildren();
 
         // Generate story for approved chore
         try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Child } from '../../types';
 import { supabase } from '../../services/supabase';
@@ -17,15 +19,24 @@ export default function ParentHomeScreen({ navigation }: any) {
   const { user, children, refreshChildren } = useAuth();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const [activeRewardsCount, setActiveRewardsCount] = useState(0);
+  const [pendingRewardRequests, setPendingRewardRequests] = useState(0);
 
   const fetchPendingApprovalsCount = async () => {
     if (!user?.id) return;
+
+    const childIds = (children || []).map(child => child.id);
+    if (childIds.length === 0) {
+      setPendingApprovalsCount(0);
+      return;
+    }
 
     try {
       const { count, error } = await supabase
         .from('chore_completions')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
+        .eq('status', 'pending')
+        .in('child_id', childIds);
 
       if (error) {
         console.error('Error fetching pending approvals count:', error);
@@ -38,14 +49,58 @@ export default function ParentHomeScreen({ navigation }: any) {
     }
   };
 
-  useEffect(() => {
-    fetchPendingApprovalsCount();
-  }, [user?.id]);
+  const fetchRewardStats = async () => {
+    if (!user?.id) return;
+
+    try {
+      const activeRewardsPromise = supabase
+        .from('rewards')
+        .select('*', { count: 'exact', head: true })
+        .eq('parent_id', user.id)
+        .eq('is_active', true);
+
+      const childIds = (children || []).map(child => child.id);
+
+      const pendingRedemptionsPromise =
+        childIds.length === 0
+          ? Promise.resolve({ count: 0, error: null })
+          : supabase
+              .from('reward_redemptions')
+              .select('*', { count: 'exact', head: true })
+              .eq('status', 'pending')
+              .in('child_id', childIds);
+
+      const [{ count: rewardsCount, error: rewardsError }, { count: redemptionCount, error: redemptionError }] =
+        await Promise.all([activeRewardsPromise, pendingRedemptionsPromise]);
+
+      if (rewardsError) {
+        console.error('Error fetching active rewards count:', rewardsError);
+      } else {
+        setActiveRewardsCount(rewardsCount || 0);
+      }
+
+      if (redemptionError) {
+        console.error('Error fetching pending reward requests:', redemptionError);
+      } else {
+        setPendingRewardRequests(redemptionCount || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching reward stats:', error);
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchPendingApprovalsCount();
+      fetchRewardStats();
+    }, [user?.id, children.length])
+  );
 
   const onRefresh = async () => {
     setIsRefreshing(true);
     await refreshChildren();
     await fetchPendingApprovalsCount();
+    await fetchRewardStats();
     setIsRefreshing(false);
   };
 
@@ -68,6 +123,22 @@ export default function ParentHomeScreen({ navigation }: any) {
             <Text style={styles.statValue}>{child.total_points}</Text>
             <Text style={styles.statLabel}>Points</Text>
           </View>
+        </View>
+        <View style={styles.childActionsRow}>
+          <TouchableOpacity
+            style={styles.childActionButton}
+            onPress={() => navigation.navigate('ChildDetail', { childId: child.id })}
+          >
+            <Ionicons name="person-circle-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles.childActionLabel}>Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.childActionButton}
+            onPress={() => navigation.navigate('RewardsManagement')}
+          >
+            <Ionicons name="gift-outline" size={18} color={theme.colors.primary} />
+            <Text style={styles.childActionLabel}>Rewards</Text>
+          </TouchableOpacity>
         </View>
       </TouchableOpacity>
     );
@@ -107,6 +178,64 @@ export default function ParentHomeScreen({ navigation }: any) {
             )}
           </View>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('RewardsManagement')}
+        >
+          <View style={styles.actionButtonContent}>
+            <Text style={styles.actionButtonText}>Manage Rewards</Text>
+            {activeRewardsCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{activeRewardsCount}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => navigation.navigate('RewardRequests')}
+        >
+          <View style={styles.actionButtonContent}>
+            <Text style={styles.actionButtonText}>Reward Requests</Text>
+            {pendingRewardRequests > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{pendingRewardRequests}</Text>
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.summaryHeader}>
+        <Text style={styles.sectionTitle}>Today at a Glance</Text>
+      </View>
+      <View style={styles.summaryCards}>
+        <TouchableOpacity
+          style={styles.summaryCard}
+          onPress={() => navigation.navigate('ChoreApproval')}
+        >
+          <Ionicons name="checkmark-done-circle" size={24} color={theme.colors.success} />
+          <Text style={styles.summaryValue}>{pendingApprovalsCount}</Text>
+          <Text style={styles.summaryLabel}>Chores to Approve</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.summaryCard}
+          onPress={() => navigation.navigate('RewardsManagement')}
+        >
+          <Ionicons name="gift" size={24} color={theme.colors.secondary} />
+          <Text style={styles.summaryValue}>{activeRewardsCount}</Text>
+          <Text style={styles.summaryLabel}>Active Rewards</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.summaryCard}
+          onPress={() => navigation.navigate('RewardRequests')}
+        >
+          <Ionicons name="sparkles-outline" size={24} color={theme.colors.warning} />
+          <Text style={styles.summaryValue}>{pendingRewardRequests}</Text>
+          <Text style={styles.summaryLabel}>Reward Requests</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.childrenSection}>
@@ -119,6 +248,15 @@ export default function ParentHomeScreen({ navigation }: any) {
               onPress={() => navigation.navigate('CreateChild')}
             >
               <Text style={styles.addChildButtonText}>Add Your First Child</Text>
+            </TouchableOpacity>
+            <Text style={styles.helperText}>
+              Tip: Add rewards to motivate your kids after chores!
+            </Text>
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => navigation.navigate('RewardsManagement')}
+            >
+              <Text style={styles.secondaryButtonText}>Manage Rewards</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -158,11 +296,13 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
   actionButton: {
-    flex: 1,
+    flexBasis: '30%',
+    flexGrow: 1,
     backgroundColor: theme.colors.primary,
     padding: theme.spacing.md,
     borderRadius: 8,
@@ -191,6 +331,38 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  summaryCards: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: theme.spacing.lg,
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+  },
+  summaryHeader: {
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.lg,
+  },
+  summaryCard: {
+    flexBasis: '30%',
+    flexGrow: 1,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 12,
+    padding: theme.spacing.md,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  summaryValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: theme.colors.text,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
   },
   childrenSection: {
     padding: theme.spacing.lg,
@@ -244,6 +416,28 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: theme.colors.textSecondary,
   },
+  childActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: theme.spacing.md,
+  },
+  childActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.xs,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    marginHorizontal: theme.spacing.xs,
+  },
+  childActionLabel: {
+    fontSize: 12,
+    color: theme.colors.text,
+    fontWeight: '600',
+  },
   emptyState: {
     alignItems: 'center',
     padding: theme.spacing.xl,
@@ -261,6 +455,25 @@ const styles = StyleSheet.create({
   },
   addChildButtonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  helperText: {
+    fontSize: 14,
+    color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: theme.spacing.md,
+  },
+  secondaryButton: {
+    marginTop: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.primary,
+  },
+  secondaryButtonText: {
+    color: theme.colors.primary,
     fontSize: 16,
     fontWeight: 'bold',
   },

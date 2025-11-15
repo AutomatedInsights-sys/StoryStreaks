@@ -62,6 +62,13 @@ export interface Reward {
   type: 'badge' | 'special_chapter' | 'streak_boost' | 'real_reward';
   parent_id: string;
   is_active: boolean;
+  thumbnail_url?: string | null;
+  category?: string | null;
+  fulfillment_instructions?: string | null;
+  estimated_fulfillment_time?: string | null;
+  auto_approve?: boolean | null;
+  is_recurring?: boolean | null;
+  quantity?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -149,6 +156,7 @@ export type ParentStackParamList = {
   EditChore: { choreId: string };
   ChoreApproval: undefined;
   RewardsManagement: undefined;
+  RewardRequests: undefined;
   ChildDetail: { childId: string };
   CreateChild: undefined;
 };
@@ -185,6 +193,13 @@ export interface CreateRewardForm {
   description: string;
   points_cost: number;
   type: 'badge' | 'special_chapter' | 'streak_boost' | 'real_reward';
+  thumbnail_url?: string;
+  category?: string;
+  fulfillment_instructions?: string;
+  estimated_fulfillment_time?: string;
+  auto_approve: boolean;
+  is_recurring: boolean;
+  quantity?: number | null;
 }
 
 // API Response Types

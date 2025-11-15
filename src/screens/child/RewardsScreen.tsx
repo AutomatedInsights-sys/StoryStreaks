@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,9 +16,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { Reward, RewardRedemption } from '../../types';
 import { theme } from '../../utils/theme';
+import { NotificationService } from '../../services/notificationService';
 
 export default function RewardsScreen() {
-  const { currentChild } = useAuth();
+  const { currentChild, refreshChildren } = useAuth();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,7 +60,23 @@ export default function RewardsScreen() {
         return;
       }
 
-      setRewards(rewardsData || []);
+      const availableRewards = (rewardsData || []).filter((reward) => {
+        if (reward.is_recurring) return true;
+
+        if (reward.quantity !== null && reward.quantity !== undefined && reward.quantity <= 0) {
+          return false;
+        }
+
+        const hasPendingOrApproved = redemptionsData?.some(
+          redemption =>
+            redemption.reward_id === reward.id &&
+            (redemption.status === 'pending' || redemption.status === 'approved')
+        );
+
+        return !hasPendingOrApproved;
+      });
+
+      setRewards(availableRewards);
       setRedemptions(redemptionsData || []);
     } catch (error) {
       console.error('Error fetching rewards:', error);
@@ -92,35 +110,141 @@ export default function RewardsScreen() {
       return;
     }
 
+    const confirmationMessage = reward.auto_approve
+      ? `Redeem "${reward.title}" for ${reward.points_cost} points? This reward will be unlocked instantly!`
+      : `Are you sure you want to redeem "${reward.title}" for ${reward.points_cost} points?`;
+
     Alert.alert(
       'Redeem Reward',
-      `Are you sure you want to redeem "${reward.title}" for ${reward.points_cost} points?`,
+      confirmationMessage,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Redeem',
+          text: reward.auto_approve ? 'Unlock' : 'Redeem',
           onPress: async () => {
             setIsRedeeming(reward.id);
             try {
-              const { error } = await supabase
-                .from('reward_redemptions')
-                .insert({
-                  reward_id: reward.id,
-                  child_id: currentChild.id,
-                  status: 'pending',
-                });
+              if (reward.auto_approve) {
+                const { error: redemptionError } = await supabase
+                  .from('reward_redemptions')
+                  .insert({
+                    reward_id: reward.id,
+                    child_id: currentChild.id,
+                    status: 'approved',
+                  });
 
-              if (error) {
-                console.error('Error redeeming reward:', error);
-                Alert.alert('Error', 'Failed to redeem reward');
-                return;
+                if (redemptionError) {
+                  console.error('Error auto-approving reward:', redemptionError);
+                  Alert.alert('Error', 'Failed to redeem reward');
+                  return;
+                }
+
+                const newPointTotal = Math.max(currentChild.total_points - reward.points_cost, 0);
+                const { error: childUpdateError } = await supabase
+                  .from('children')
+                  .update({ total_points: newPointTotal })
+                  .eq('id', currentChild.id);
+
+                if (childUpdateError) {
+                  console.error('Error updating child points:', childUpdateError);
+                  Alert.alert('Error', 'Reward was redeemed but points could not be updated.');
+                  return;
+                }
+
+                if (!reward.is_recurring) {
+                  const updates: Record<string, any> = {};
+                  if (reward.quantity !== null && reward.quantity !== undefined) {
+                    const remaining = Math.max(reward.quantity - 1, 0);
+                    updates.quantity = remaining;
+                    if (remaining === 0) {
+                      updates.is_active = false;
+                    }
+                  } else {
+                    updates.is_active = false;
+                  }
+
+                  if (Object.keys(updates).length > 0) {
+                    await supabase
+                      .from('rewards')
+                      .update(updates)
+                      .eq('id', reward.id);
+                  }
+                }
+
+                if (currentChild.parent_id) {
+                  await NotificationService.notifyRewardRedemption(
+                    currentChild.id,
+                    reward.id,
+                    currentChild.parent_id,
+                    'approved'
+                  );
+                }
+
+                await refreshChildren();
+                Alert.alert(
+                  'Reward Unlocked! 🎉',
+                  'Enjoy your reward right away!',
+                  [{ text: 'OK' }]
+                );
+              } else {
+                const { error } = await supabase
+                  .from('reward_redemptions')
+                  .insert({
+                    reward_id: reward.id,
+                    child_id: currentChild.id,
+                    status: 'pending',
+                  });
+
+                if (error) {
+                  console.error('Error redeeming reward:', error);
+                  Alert.alert('Error', 'Failed to redeem reward');
+                  return;
+                }
+
+                if (!reward.is_recurring) {
+                  const updates: Record<string, any> = {};
+                  if (reward.quantity !== null && reward.quantity !== undefined) {
+                    const remaining = Math.max(reward.quantity - 1, 0);
+                    updates.quantity = remaining;
+                    if (remaining === 0) {
+                      updates.is_active = false;
+                    }
+                  } else {
+                    updates.is_active = false;
+                  }
+
+                  if (Object.keys(updates).length > 0) {
+                    await supabase
+                      .from('rewards')
+                      .update(updates)
+                      .eq('id', reward.id);
+                  }
+                }
+
+                if (currentChild.parent_id) {
+                  await NotificationService.notifyRewardRedemption(
+                    currentChild.id,
+                    reward.id,
+                    currentChild.parent_id,
+                    'pending'
+                  );
+                }
+
+                if (currentChild.parent_id) {
+                  await NotificationService.notifyRewardRedemption(
+                    currentChild.id,
+                    reward.id,
+                    currentChild.parent_id,
+                    'pending'
+                  );
+                }
+
+                Alert.alert(
+                  'Reward Requested! 🎉',
+                  'Your reward request has been sent to your parent for approval.',
+                  [{ text: 'OK' }]
+                );
               }
-
-              Alert.alert(
-                'Reward Requested! 🎉',
-                'Your reward request has been sent to your parent for approval.',
-                [{ text: 'OK' }]
-              );
 
               fetchRewards();
             } catch (error) {
@@ -166,10 +290,21 @@ export default function RewardsScreen() {
 
   const renderRewardCard = (reward: Reward) => {
     const canAfford = currentChild ? currentChild.total_points >= reward.points_cost : false;
-    const isRedeeming = isRedeeming === reward.id;
+    const isRewardRedeeming = isRedeeming === reward.id;
 
     return (
       <View key={reward.id} style={styles.rewardCard}>
+        {reward.thumbnail_url ? (
+          <Image
+            source={{ uri: reward.thumbnail_url }}
+            style={[
+              styles.rewardImage,
+              !canAfford && styles.rewardImageDisabled,
+            ]}
+            resizeMode="cover"
+          />
+        ) : null}
+
         <View style={styles.rewardHeader}>
           <View style={styles.rewardTitleContainer}>
             <Text style={styles.rewardEmoji}>
@@ -177,9 +312,18 @@ export default function RewardsScreen() {
             </Text>
             <View style={styles.rewardTitleText}>
               <Text style={styles.rewardTitle}>{reward.title}</Text>
-              <Text style={styles.rewardType}>
-                {reward.type.replace('_', ' ').toUpperCase()}
-              </Text>
+              <View style={styles.rewardMetaRow}>
+                <Text style={styles.rewardType}>
+                  {reward.type.replace('_', ' ').toUpperCase()}
+                </Text>
+                {reward.category ? (
+                  <View style={styles.categoryBadge}>
+                    <Text style={styles.categoryText}>
+                      {reward.category.replace('_', ' ')}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
           </View>
           <View style={[
@@ -192,6 +336,36 @@ export default function RewardsScreen() {
 
         <Text style={styles.rewardDescription}>{reward.description}</Text>
 
+        {reward.fulfillment_instructions ? (
+          <View style={styles.fulfillmentSection}>
+            <Text style={styles.fulfillmentLabel}>What you'll get</Text>
+            <Text style={styles.fulfillmentText}>
+              {reward.fulfillment_instructions}
+            </Text>
+          </View>
+        ) : null}
+
+        {reward.quantity !== null && reward.quantity !== undefined && !reward.is_recurring ? (
+          <Text style={styles.rewardQuantityText}>
+            Remaining redemptions: {Math.max(reward.quantity, 0)}
+          </Text>
+        ) : null}
+
+        {reward.estimated_fulfillment_time ? (
+          <View style={styles.fulfillmentSection}>
+            <Text style={styles.fulfillmentLabel}>When you'll get it</Text>
+            <Text style={styles.fulfillmentText}>
+              {reward.estimated_fulfillment_time}
+            </Text>
+          </View>
+        ) : null}
+
+        {reward.auto_approve ? (
+          <View style={styles.autoApproveBanner}>
+            <Text style={styles.autoApproveText}>Instant reward — no parent approval needed!</Text>
+          </View>
+        ) : null}
+
         <View style={styles.rewardFooter}>
           <View style={styles.pointsInfo}>
             <Text style={styles.pointsText}>
@@ -203,19 +377,23 @@ export default function RewardsScreen() {
             style={[
               styles.redeemButton,
               !canAfford && styles.redeemButtonDisabled,
-              isRedeeming && styles.redeemButtonLoading
+              isRewardRedeeming && styles.redeemButtonLoading
             ]}
             onPress={() => redeemReward(reward)}
-            disabled={!canAfford || isRedeeming}
+            disabled={!canAfford || isRewardRedeeming}
           >
-            {isRedeeming ? (
+            {isRewardRedeeming ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
               <Text style={[
                 styles.redeemButtonText,
                 !canAfford && styles.redeemButtonTextDisabled
               ]}>
-                {canAfford ? 'Redeem' : 'Need More Points'}
+                {canAfford
+                  ? reward.auto_approve
+                    ? 'Unlock Now'
+                    : 'Redeem'
+                  : 'Need More Points'}
               </Text>
             )}
           </TouchableOpacity>
@@ -413,12 +591,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    gap: theme.spacing.md,
+  },
+  rewardImage: {
+    width: '100%',
+    height: 140,
+    borderRadius: 10,
+  },
+  rewardImageDisabled: {
+    opacity: 0.6,
   },
   rewardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: theme.spacing.md,
   },
   rewardTitleContainer: {
     flexDirection: 'row',
@@ -431,17 +617,34 @@ const styles = StyleSheet.create({
   },
   rewardTitleText: {
     flex: 1,
+    gap: theme.spacing.xs,
   },
   rewardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+  },
+  rewardMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.sm,
   },
   rewardType: {
     fontSize: 12,
     color: theme.colors.textSecondary,
+    fontWeight: '600',
+  },
+  categoryBadge: {
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs / 2,
+    borderRadius: 12,
+  },
+  categoryText: {
+    color: '#fff',
+    fontSize: 11,
     fontWeight: 'bold',
+    textTransform: 'capitalize',
   },
   rewardCost: {
     paddingHorizontal: theme.spacing.md,
@@ -457,7 +660,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.text,
     lineHeight: 20,
-    marginBottom: theme.spacing.md,
+  },
+  fulfillmentSection: {
+    backgroundColor: theme.colors.background,
+    borderRadius: 8,
+    padding: theme.spacing.md,
+    gap: theme.spacing.xs,
+  },
+  fulfillmentLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textSecondary,
+  },
+  fulfillmentText: {
+    fontSize: 14,
+    color: theme.colors.text,
+    lineHeight: 20,
+  },
+  rewardQuantityText: {
+    fontSize: 12,
+    color: theme.colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  autoApproveBanner: {
+    backgroundColor: theme.colors.success,
+    padding: theme.spacing.md,
+    borderRadius: 10,
+  },
+  autoApproveText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   rewardFooter: {
     flexDirection: 'row',
