@@ -13,24 +13,50 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
-import { StoryChapter } from '../../types';
+import { aiStoryService } from '../../services/aiStoryService';
+import { StoryChapter, StoryBook } from '../../types';
 import { theme } from '../../utils/theme';
 
 export default function StoriesListScreen({ navigation }: any) {
   const { currentChild } = useAuth();
   const [chapters, setChapters] = useState<StoryChapter[]>([]);
+  const [activeBook, setActiveBook] = useState<StoryBook | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isStartingBook, setIsStartingBook] = useState(false);
 
-  const fetchChapters = async () => {
+  const fetchData = async () => {
     if (!currentChild?.id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('story_chapters')
+      // 1. Fetch Active Book
+      const { data: book } = await supabase
+        .from('story_books')
         .select('*')
         .eq('child_id', currentChild.id)
-        .order('chapter_number', { ascending: true });
+        .eq('status', 'active')
+        .single();
+      
+      setActiveBook(book);
+
+      // 2. Fetch Chapters
+      let query = supabase
+        .from('story_chapters')
+        .select('*')
+        .eq('child_id', currentChild.id);
+
+      if (book) {
+        query = query.eq('story_book_id', book.id);
+      } else {
+        // If no active book, show all chapters (legacy + completed books)
+        // Or maybe just legacy? For now, show all to be safe.
+        // Actually, if we have completed books, we might want to group them.
+        // For this version, let's just show everything if no active book.
+      }
+
+      query = query.order('chapter_number', { ascending: true });
+
+      const { data: chaptersData, error } = await query;
 
       if (error) {
         console.error('Error fetching chapters:', error);
@@ -38,9 +64,9 @@ export default function StoriesListScreen({ navigation }: any) {
         return;
       }
 
-      setChapters(data || []);
+      setChapters(chaptersData || []);
     } catch (error) {
-      console.error('Error fetching chapters:', error);
+      console.error('Error fetching data:', error);
       Alert.alert('Error', 'Failed to load stories');
     } finally {
       setIsLoading(false);
@@ -50,13 +76,33 @@ export default function StoriesListScreen({ navigation }: any) {
 
   useFocusEffect(
     useCallback(() => {
-      fetchChapters();
+      fetchData();
     }, [currentChild?.id])
   );
 
   const onRefresh = () => {
     setIsRefreshing(true);
-    fetchChapters();
+    fetchData();
+  };
+
+  const handleStartBook = async () => {
+    if (!currentChild) return;
+    
+    setIsStartingBook(true);
+    try {
+      const book = await aiStoryService.startNewBook(currentChild.id, currentChild.world_theme);
+      if (book) {
+        Alert.alert('New Adventure Started!', `"${book.title}" is ready. Complete chores to unlock Chapter 1!`);
+        fetchData();
+      } else {
+        Alert.alert('Error', 'Could not start a new book. Please try again.');
+      }
+    } catch (e) {
+      console.error(e);
+      Alert.alert('Error', 'Failed to start book');
+    } finally {
+      setIsStartingBook(false);
+    }
   };
 
   const getWorldThemeEmoji = (theme: string) => {
@@ -67,6 +113,50 @@ export default function StoriesListScreen({ navigation }: any) {
       default: return '📚';
     }
   };
+
+  const renderBookHeader = () => {
+    if (!activeBook) return null;
+    
+    const unlockedCount = chapters.length;
+    const total = activeBook.total_chapters;
+    const progress = Math.min(unlockedCount / total, 1);
+    
+    return (
+      <View style={styles.bookHeader}>
+        <View style={styles.bookHeaderTop}>
+          <Text style={styles.bookEmoji}>{getWorldThemeEmoji(activeBook.theme)}</Text>
+          <View style={styles.bookInfo}>
+            <Text style={styles.bookTitle}>{activeBook.title}</Text>
+            <Text style={styles.bookStatus}>
+              Chapter {unlockedCount} of {total}
+            </Text>
+          </View>
+        </View>
+        
+        <View style={styles.progressBarContainer}>
+          <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />
+        </View>
+      </View>
+    );
+  };
+
+  const renderStartBookButton = () => (
+    <View style={styles.startBookContainer}>
+      <Text style={styles.startBookTitle}>Ready for a new adventure?</Text>
+      <Text style={styles.startBookSubtitle}>Start a new book in the {currentChild?.world_theme.replace('_', ' ')}!</Text>
+      <TouchableOpacity 
+        style={styles.startBookButton}
+        onPress={handleStartBook}
+        disabled={isStartingBook}
+      >
+        {isStartingBook ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.startBookButtonText}>✨ Start New Book</Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
 
   const renderChapterCard = (chapter: StoryChapter) => (
     <TouchableOpacity
@@ -130,15 +220,29 @@ export default function StoriesListScreen({ navigation }: any) {
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }
       >
-        {chapters.length === 0 ? (
+        {renderBookHeader()}
+
+        {(!activeBook && chapters.length === 0) ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>📚 No stories yet</Text>
             <Text style={styles.emptyText}>
-              Complete some chores to unlock your first story chapter!
+              Start a new book to begin your adventure!
             </Text>
+            <TouchableOpacity 
+              style={styles.startBookButton}
+              onPress={handleStartBook}
+              disabled={isStartingBook}
+            >
+               {isStartingBook ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.startBookButtonText}>✨ Start New Book</Text>
+                )}
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={styles.chaptersList}>
+            {!activeBook && renderStartBookButton()}
             {chapters.map(renderChapterCard)}
           </View>
         )}
@@ -152,21 +256,108 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  // Twilight sky header with soft blue glow
   header: {
+    padding: theme.spacing.xl,
+    backgroundColor: 'rgba(184, 230, 245, 0.3)',
+    borderBottomWidth: 0,
+    borderBottomColor: 'rgba(79, 172, 254, 0.15)',
+  },
+  bookHeader: {
+    margin: theme.spacing.xl,
+    marginTop: theme.spacing.md,
     padding: theme.spacing.lg,
     backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: theme.colors.primary,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 5,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  bookHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  bookEmoji: {
+    fontSize: 40,
+    marginRight: theme.spacing.lg,
+  },
+  bookInfo: {
+    flex: 1,
+  },
+  bookTitle: {
+    fontSize: 22,
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
   },
-  subtitle: {
+  bookStatus: {
+    fontSize: 16,
+    color: theme.colors.primary,
+    fontWeight: '600',
+  },
+  progressBarContainer: {
+    height: 12,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: theme.colors.primary,
+    borderRadius: 6,
+  },
+  startBookContainer: {
+    padding: theme.spacing.xl,
+    backgroundColor: 'rgba(108, 92, 231, 0.1)',
+    borderRadius: 20,
+    alignItems: 'center',
+    marginBottom: theme.spacing.xl,
+  },
+  startBookTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.sm,
+  },
+  startBookSubtitle: {
     fontSize: 16,
     color: theme.colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: theme.spacing.lg,
+  },
+  startBookButton: {
+    backgroundColor: theme.colors.primary,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
+    borderRadius: 999,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  startBookButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  title: {
+    fontSize: 42,
+    fontWeight: '900',
+    color: theme.colors.text,
+    marginBottom: theme.spacing.md,
+    letterSpacing: -1,
+  },
+  subtitle: {
+    fontSize: 18,
+    color: theme.colors.textSecondary,
+    fontWeight: '500',
+    lineHeight: 26,
   },
   scrollView: {
     flex: 1,
@@ -178,94 +369,117 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: theme.spacing.md,
-    fontSize: 16,
+    fontSize: 18,
     color: theme.colors.textSecondary,
+    fontWeight: '600',
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: theme.spacing.xl,
+    padding: theme.spacing.xl * 2,
   },
   emptyTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 32,
+    fontWeight: '800',
     color: theme.colors.text,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    letterSpacing: -0.5,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
     color: theme.colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 28,
+    fontWeight: '500',
   },
+  // Storybook library layout for chapters
   chaptersList: {
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
+    padding: theme.spacing.xl,
+    gap: theme.spacing.lg,
   },
+  // Magical storybook chapter cards with sky blue glow
   chapterCard: {
     backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: theme.spacing.lg,
+    borderRadius: 20,
+    padding: theme.spacing.xl,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderColor: 'rgba(79, 172, 254, 0.2)',
+    shadowColor: '#4FACFE',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 6,
+    overflow: 'hidden',
   },
   chapterHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
   chapterEmoji: {
-    fontSize: 24,
-    marginRight: theme.spacing.md,
+    fontSize: 56,
+    marginRight: theme.spacing.lg,
+    marginTop: -8,
   },
   chapterTitleContainer: {
     flex: 1,
   },
   chapterTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 24,
+    fontWeight: '800',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: -0.5,
+    lineHeight: 32,
   },
   chapterNumber: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
+    fontSize: 16,
+    color: theme.colors.primary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   newBadge: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 12,
+    backgroundColor: '#00C9FF',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 999,
+    shadowColor: '#00C9FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   newText: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
   chapterPreview: {
-    fontSize: 14,
+    fontSize: 16,
     color: theme.colors.text,
-    lineHeight: 20,
-    marginBottom: theme.spacing.md,
+    lineHeight: 26,
+    marginBottom: theme.spacing.lg,
+    opacity: 0.75,
   },
   chapterFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: theme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(79, 172, 254, 0.2)',
   },
   unlockedDate: {
-    fontSize: 12,
+    fontSize: 14,
     color: theme.colors.textSecondary,
+    fontWeight: '600',
   },
   readStatus: {
-    fontSize: 12,
+    fontSize: 16,
     color: theme.colors.primary,
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
 });

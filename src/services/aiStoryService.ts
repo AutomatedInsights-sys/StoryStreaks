@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { supabase } from './supabase';
-import { StoryGenerationRequest, StoryGenerationResponse, StoryChapter } from '../types';
+import { StoryGenerationRequest, StoryGenerationResponse, StoryChapter, StoryBook, StoryOutlineRequest } from '../types';
 import { OpenAIProvider, GeminiProvider, ClaudeProvider } from '../ai/storyProviders';
 
 export class AIStoryService {
@@ -89,6 +89,18 @@ export class AIStoryService {
 
       // Save to database
       if (result.chapter) {
+        // Fix: Ensure story_book_id is passed from request to chapter before saving
+        if (request.bookId) {
+            result.chapter.story_book_id = request.bookId;
+        }
+
+        // Fix: Apply title override from outline if present, to correct "Chapter 10" or bad titles
+        if (request.chapterTitle && (result.chapter.title.includes('A New Adventure') || !result.chapter.title)) {
+             result.chapter.title = request.chapterTitle;
+        } else if (request.chapterTitle && !result.chapter.title.includes(request.chapterTitle) && !result.chapter.title.toLowerCase().includes('chapter')) {
+             result.chapter.title = `Chapter ${request.chapterNumber}: ${request.chapterTitle}`;
+        }
+
         const savedChapter = await this.saveChapterToDatabase(result.chapter);
         if (savedChapter) {
           result.chapter = savedChapter;
@@ -102,6 +114,76 @@ export class AIStoryService {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       };
+    }
+  }
+
+  async startNewBook(childId: string, worldTheme: string): Promise<StoryBook | null> {
+    try {
+      console.log('📚 Starting new book for child:', childId, 'Theme:', worldTheme);
+
+      // 1. Get child info
+      const { data: child, error: childError } = await supabase
+        .from('children')
+        .select('name, age_bracket')
+        .eq('id', childId)
+        .single();
+
+      if (childError || !child) {
+        console.error('📚 Error fetching child for new book:', childError);
+        return null;
+      }
+
+      // 2. Generate Outline
+      const provider = this.providers.get(this.defaultProvider);
+      if (!provider) {
+        console.error('📚 No provider available for outline generation');
+        return null;
+      }
+
+      const outlineRequest: StoryOutlineRequest = {
+        childId,
+        childName: child.name,
+        ageBracket: child.age_bracket,
+        worldTheme: worldTheme as any,
+        totalChapters: 10
+      };
+
+      console.log('📚 Generating outline with request:', outlineRequest);
+      const outline = await provider.generateStoryOutline(outlineRequest);
+
+      if (!outline || outline.length === 0) {
+        console.error('📚 Failed to generate outline');
+        return null;
+      }
+      
+      // Use the title from the first chapter or generic
+      const bookTitle = `The ${worldTheme.replace('_', ' ')} Adventure`;
+
+      // 3. Save Book
+      const { data: book, error: bookError } = await supabase
+        .from('story_books')
+        .insert({
+          child_id: childId,
+          title: bookTitle,
+          theme: worldTheme,
+          status: 'active',
+          total_chapters: 10,
+          current_chapter: 1,
+          outline: outline
+        })
+        .select()
+        .single();
+
+      if (bookError) {
+        console.error('📚 Error saving book:', bookError);
+        return null;
+      }
+
+      console.log('📚 New book created:', book.id);
+      return book;
+    } catch (error) {
+      console.error('📚 Error in startNewBook:', error);
+      return null;
     }
   }
 
@@ -151,6 +233,7 @@ export class AIStoryService {
         .from('story_chapters')
         .insert({
           child_id: chapter.child_id,
+          story_book_id: chapter.story_book_id,
           chapter_number: chapter.chapter_number,
           title: chapter.title,
           content: chapter.content,
@@ -190,8 +273,6 @@ export class AIStoryService {
         return null;
       }
 
-      console.log('📚 Child info:', { name: child.name, world_theme: child.world_theme });
-
       // Get completed chores
       const { data: chores, error: choresError } = await supabase
         .from('chore_completions')
@@ -210,42 +291,78 @@ export class AIStoryService {
         return null;
       }
 
-      console.log('📚 Found completed chores:', chores.length);
+      const completedChoreTitles = chores.map(c => c.chores?.title || 'completed chore');
 
-      // Get current story progress
-      const { data: progress } = await supabase
-        .from('story_progress')
-        .select('current_chapter, total_chapters_unlocked')
+      // CHECK FOR ACTIVE BOOK
+      let { data: activeBook } = await supabase
+        .from('story_books')
+        .select('*')
         .eq('child_id', childId)
-        .eq('world_theme', child.world_theme)
+        .eq('status', 'active')
         .single();
 
-      // Get the highest existing chapter number for this child
+      // If no active book, create one
+      if (!activeBook) {
+        console.log('📚 No active book found, creating new one...');
+        activeBook = await this.startNewBook(childId, child.world_theme);
+        if (!activeBook) {
+             console.error('📚 Failed to create new book');
+             return null;
+        }
+      }
+
+      // Calculate Next Chapter Number based on what's already in the chapters table for this book
       const { data: existingChapters } = await supabase
         .from('story_chapters')
         .select('chapter_number')
-        .eq('child_id', childId)
-        .eq('world_theme', child.world_theme)
+        .eq('story_book_id', activeBook.id)
         .order('chapter_number', { ascending: false })
         .limit(1);
+        
+      const lastUnlocked = existingChapters?.[0]?.chapter_number || 0;
+      const nextChapterNum = lastUnlocked + 1;
 
-      const highestChapter = existingChapters?.[0]?.chapter_number || 0;
-      const currentChapter = highestChapter + 1;
-      
-      console.log('📚 Chapter calculation:', {
-        existingProgress: progress,
-        highestExistingChapter: highestChapter,
-        newChapterNumber: currentChapter
-      });
-      const completedChoreTitles = chores.map(c => c.chores?.title || 'completed chore');
+      if (nextChapterNum > activeBook.total_chapters) {
+          console.log('📚 Book completed!');
+          // Mark book as completed
+          await supabase
+            .from('story_books')
+            .update({ 
+                status: 'completed', 
+                completed_at: new Date().toISOString() 
+            })
+            .eq('id', activeBook.id);
+            
+          // Optionally notify or return a special status
+          return null; 
+      }
 
-      // Get previous chapter summary if exists
-      const { data: previousChapter } = await supabase
-        .from('story_chapters')
-        .select('content')
-        .eq('child_id', childId)
-        .eq('chapter_number', currentChapter - 1)
-        .single();
+      // Get synopsis from outline
+      // Outline is JSONB, so we need to cast or treat as any
+      const outline = activeBook.outline as any[];
+      const outlineChapter = outline.find((o: any) => o.chapter_number === nextChapterNum);
+      const chapterSynopsis = outlineChapter?.synopsis || '';
+      const chapterTitle = outlineChapter?.title || `Chapter ${nextChapterNum}`;
+
+      console.log(`📚 Generating Chapter ${nextChapterNum}: ${chapterTitle}`);
+      console.log(`📚 Synopsis: ${chapterSynopsis}`);
+
+      // Get previous chapter content for context
+      let previousChapterSummary: string | undefined = undefined;
+      if (nextChapterNum > 1) {
+          const { data: previousChapter } = await supabase
+            .from('story_chapters')
+            .select('content')
+            .eq('story_book_id', activeBook.id)
+            .eq('chapter_number', nextChapterNum - 1)
+            .single();
+            
+          if (previousChapter?.content) {
+            const content = previousChapter.content;
+            const startIndex = Math.max(0, content.length - 800);
+            previousChapterSummary = content.substring(startIndex);
+          }
+      }
 
       const request: StoryGenerationRequest = {
         childId,
@@ -253,25 +370,45 @@ export class AIStoryService {
         ageBracket: child.age_bracket,
         worldTheme: child.world_theme,
         completedChores: completedChoreTitles,
-        previousChapterSummary: previousChapter?.content ? 
-          previousChapter.content.substring(0, 200) + '...' : undefined,
-        chapterNumber: currentChapter,
+        previousChapterSummary,
+        chapterNumber: nextChapterNum,
+        bookId: activeBook.id,
+        chapterSynopsis,
+        chapterTitle
       };
-
-      console.log('📚 Generating story with request:', {
-        childName: request.childName,
-        worldTheme: request.worldTheme,
-        chapterNumber: request.chapterNumber,
-        completedChores: request.completedChores
-      });
 
       const result = await this.generateStory(request);
       
       if (result.success && result.chapter) {
+        // Ensure chapter has the correct title from outline if AI changed it too much, 
+        // or use AI title if it's better. Let's stick to AI title but maybe influence it.
+        // And link to book
+        result.chapter.story_book_id = activeBook.id;
+        result.chapter.chapter_number = nextChapterNum; // Ensure correct number
+        
+        // Use the outline title if the generated title is a fallback or very generic
+        if (chapterTitle && (result.chapter.title.includes('A New Adventure') || !result.chapter.title)) {
+             result.chapter.title = chapterTitle;
+        } else if (chapterTitle && !result.chapter.title.includes(chapterTitle) && !result.chapter.title.toLowerCase().includes('chapter')) {
+             // If the generated title doesn't look like a chapter title but we have one from outline
+             result.chapter.title = `Chapter ${nextChapterNum}: ${chapterTitle}`;
+        }
+        
+        // Save happens inside generateStory -> saveChapterToDatabase, 
+        // but we need to make sure saveChapterToDatabase handles the new fields.
+        // Wait, generateStory calls saveChapterToDatabase internally.
+        // I updated saveChapterToDatabase above.
+        
+        // Update Book Progress
+        await supabase
+            .from('story_books')
+            .update({ current_chapter: nextChapterNum })
+            .eq('id', activeBook.id);
+            
         console.log('📚 Story generated successfully:', result.chapter.title);
         
-        // Update story progress
-        await this.updateStoryProgress(childId, child.world_theme, currentChapter);
+        // Update story progress (Legacy table support)
+        await this.updateStoryProgress(childId, child.world_theme, nextChapterNum);
         
         // Create notification
         await this.createStoryUnlockNotification(childId, result.chapter.title);
@@ -283,28 +420,6 @@ export class AIStoryService {
       }
     } catch (error) {
       console.error('📚 Error in unlockStoryForChores:', error);
-      
-      // Try to generate a fallback story if AI generation fails
-      try {
-        console.log('📚 Attempting fallback story generation...');
-        const fallbackRequest: StoryGenerationRequest = {
-          childId,
-          childName: 'Child', // Default name if we can't fetch child info
-          ageBracket: '4-6',
-          worldTheme: 'magical_forest',
-          completedChores: ['completed chore'],
-          chapterNumber: 1,
-        };
-        
-        const fallbackResult = await this.generateFallbackStory(fallbackRequest);
-        if (fallbackResult.success && fallbackResult.chapter) {
-          console.log('📚 Fallback story generated successfully');
-          return fallbackResult.chapter;
-        }
-      } catch (fallbackError) {
-        console.error('📚 Fallback story generation also failed:', fallbackError);
-      }
-      
       return null;
     }
   }

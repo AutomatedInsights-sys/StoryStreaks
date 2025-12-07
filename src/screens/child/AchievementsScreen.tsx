@@ -178,70 +178,72 @@ export default function AchievementsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Achievements</Text>
-        {progress && (
-          <Text style={styles.subtitle}>
-            {progress.unlocked_achievements} of {progress.total_achievements} unlocked
-          </Text>
-        )}
-      </View>
-
-      {/* Progress Overview */}
-      {progress && (
-        <View style={styles.progressOverview}>
-          <View style={styles.progressStats}>
-            <View style={styles.progressStat}>
-              <Text style={styles.progressStatValue}>{progress.unlocked_achievements}</Text>
-              <Text style={styles.progressStatLabel}>Unlocked</Text>
-            </View>
-            <View style={styles.progressStat}>
-              <Text style={styles.progressStatValue}>{progress.total_points_earned}</Text>
-              <Text style={styles.progressStatLabel}>Points Earned</Text>
-            </View>
-            <View style={styles.progressStat}>
-              <Text style={styles.progressStatValue}>
-                {Math.round((progress.unlocked_achievements / progress.total_achievements) * 100)}%
-              </Text>
-              <Text style={styles.progressStatLabel}>Complete</Text>
-            </View>
-          </View>
-        </View>
-      )}
-
-      {/* Category Filter */}
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryFilter}
-        contentContainerStyle={styles.categoryFilterContent}
-      >
-        {categories.map(category => (
-          <TouchableOpacity
-            key={category.key}
-            style={[
-              styles.categoryButton,
-              selectedCategory === category.key && styles.selectedCategoryButton
-            ]}
-            onPress={() => setSelectedCategory(category.key)}
-          >
-            <Text style={styles.categoryButtonEmoji}>{category.emoji}</Text>
-            <Text style={[
-              styles.categoryButtonText,
-              selectedCategory === category.key && styles.selectedCategoryButtonText
-            ]}>
-              {category.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <ScrollView
-        style={styles.scrollView}
+        style={styles.mainScrollView}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Achievements</Text>
+          {progress && (
+            <Text style={styles.subtitle}>
+              {progress.unlocked_achievements} of {progress.total_achievements} unlocked
+            </Text>
+          )}
+        </View>
+
+        {/* Compact Progress Overview */}
+        {progress && (
+          <View style={styles.progressOverview}>
+            <View style={styles.progressStats}>
+              <View style={styles.progressStat}>
+                <Text style={styles.progressStatValue}>{progress.unlocked_achievements}</Text>
+                <Text style={styles.progressStatLabel}>Unlocked</Text>
+              </View>
+              <View style={styles.progressStat}>
+                <Text style={styles.progressStatValue}>{progress.total_points_earned}</Text>
+                <Text style={styles.progressStatLabel}>Points</Text>
+              </View>
+              <View style={styles.progressStat}>
+                <Text style={styles.progressStatValue}>
+                  {Math.round((progress.unlocked_achievements / progress.total_achievements) * 100)}%
+                </Text>
+                <Text style={styles.progressStatLabel}>Complete</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Compact Category Filter */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryFilter}
+          contentContainerStyle={styles.categoryFilterContent}
+        >
+          {categories.map(category => (
+            <TouchableOpacity
+              key={category.key}
+              style={[
+                styles.categoryButton,
+                selectedCategory === category.key && styles.selectedCategoryButton
+              ]}
+              onPress={() => setSelectedCategory(category.key)}
+            >
+              <Text style={styles.categoryButtonEmoji}>{category.emoji}</Text>
+              <Text style={[
+                styles.categoryButtonText,
+                selectedCategory === category.key && styles.selectedCategoryButtonText
+              ]}>
+                {category.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Achievements List */}
         <View style={styles.achievementsList}>
           {getFilteredAchievements().map(renderAchievementCard)}
         </View>
@@ -255,21 +257,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
+  mainScrollView: {
+    flex: 1,
+  },
+  // Compact magical header
   header: {
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    padding: theme.spacing.xl,
+    paddingBottom: theme.spacing.lg,
+    backgroundColor: theme.colors.background,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 38,
+    fontWeight: '900',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: -0.8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
@@ -277,17 +284,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    marginTop: theme.spacing.md,
-    fontSize: 16,
+    marginTop: theme.spacing.lg,
+    fontSize: 18,
     color: theme.colors.textSecondary,
+    fontWeight: '600',
   },
+  // Magical progress overview with warm glow
   progressOverview: {
-    margin: theme.spacing.lg,
+    marginHorizontal: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
     padding: theme.spacing.lg,
     backgroundColor: theme.colors.surface,
-    borderRadius: 12,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(255, 140, 66, 0.15)',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
   },
   progressStats: {
     flexDirection: 'row',
@@ -297,160 +312,201 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   progressStatValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: theme.colors.primary,
     marginBottom: theme.spacing.xs,
+    letterSpacing: -0.5,
   },
   progressStatLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.textSecondary,
     textAlign: 'center',
+    fontWeight: '600',
   },
+  // Compact category filter
   categoryFilter: {
+    maxHeight: 50,
     marginBottom: theme.spacing.lg,
   },
   categoryFilterContent: {
-    paddingHorizontal: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.xl,
+    gap: theme.spacing.sm,
   },
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    marginRight: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
     backgroundColor: theme.colors.surface,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderRadius: 999,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 140, 66, 0.2)',
+    shadowColor: '#1A2332',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
   selectedCategoryButton: {
     backgroundColor: theme.colors.primary,
     borderColor: theme.colors.primary,
+    shadowColor: theme.colors.primary,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   categoryButtonEmoji: {
-    fontSize: 16,
-    marginRight: theme.spacing.xs,
+    fontSize: 18,
+    marginRight: theme.spacing.sm,
   },
   categoryButtonText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '700',
     color: theme.colors.text,
+    letterSpacing: 0.2,
   },
   selectedCategoryButtonText: {
     color: '#fff',
   },
-  scrollView: {
-    flex: 1,
-  },
   achievementsList: {
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
+    paddingBottom: theme.spacing.xl,
+    gap: theme.spacing.lg,
   },
+  // Magical achievement cards with warm glow
   achievementCard: {
     backgroundColor: theme.colors.surface,
-    borderRadius: 12,
-    padding: theme.spacing.lg,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    borderRadius: 20,
+    padding: theme.spacing.xl,
+    borderLeftWidth: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 140, 66, 0.1)',
+    shadowColor: '#FF8C42',
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 16,
+    elevation: 5,
   },
   unlockedCard: {
-    borderColor: theme.colors.primary,
+    borderLeftColor: theme.colors.primary,
+    shadowColor: theme.colors.primary,
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
   },
   achievementHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
   achievementIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
+    marginRight: theme.spacing.lg,
+    shadowColor: '#1A2332',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   achievementIconText: {
-    fontSize: 24,
+    fontSize: 32,
   },
   achievementInfo: {
     flex: 1,
   },
   achievementTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '800',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: -0.3,
+    lineHeight: 26,
   },
   achievementDescription: {
-    fontSize: 14,
+    fontSize: 15,
     color: theme.colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: 22,
+    fontWeight: '500',
   },
   lockedText: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   unlockedBadge: {
-    backgroundColor: theme.colors.primary,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    backgroundColor: theme.colors.success,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: theme.colors.success,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   unlockedText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   lockedBadge: {
     backgroundColor: theme.colors.border,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
   lockedText: {
-    fontSize: 16,
+    fontSize: 20,
   },
   achievementFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 140, 66, 0.15)',
   },
   categoryContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 140, 66, 0.1)',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 999,
   },
   categoryEmoji: {
-    fontSize: 12,
+    fontSize: 14,
     marginRight: theme.spacing.xs,
   },
   categoryText: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: '700',
     color: theme.colors.text,
+    letterSpacing: 0.5,
   },
   pointsContainer: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 12,
+    backgroundColor: '#FFB347',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 999,
+    shadowColor: '#FFB347',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 3,
   },
   pointsText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   progressContainer: {
     flexDirection: 'row',
@@ -458,20 +514,21 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     flex: 1,
-    height: 6,
-    backgroundColor: theme.colors.border,
-    borderRadius: 3,
-    marginRight: theme.spacing.sm,
+    height: 8,
+    backgroundColor: 'rgba(255, 140, 66, 0.2)',
+    borderRadius: 999,
+    marginRight: theme.spacing.md,
+    overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 999,
   },
   progressText: {
-    fontSize: 12,
-    color: theme.colors.textSecondary,
-    fontWeight: 'bold',
-    minWidth: 35,
+    fontSize: 14,
+    color: theme.colors.primary,
+    fontWeight: '800',
+    minWidth: 40,
     textAlign: 'right',
   },
 });

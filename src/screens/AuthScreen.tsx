@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../contexts/AuthContext';
@@ -72,6 +73,11 @@ export default function AuthScreen() {
       >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.content}>
+          <Image 
+            source={require('../../assets/ChoreyStoriesLogo.jpeg')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={styles.title}>StoryStreaks</Text>
           <Text style={styles.subtitle}>
             Turn chores into magical adventures!
@@ -152,6 +158,13 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     alignSelf: 'center',
     width: '100%',
+  },
+  logo: {
+    width: 180,
+    height: 180,
+    alignSelf: 'center',
+    marginBottom: theme.spacing.md,
+    borderRadius: 24,
   },
   title: {
     fontSize: 32,

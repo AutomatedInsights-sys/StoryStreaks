@@ -1,4 +1,5 @@
 import React from 'react';
+import { View } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -39,23 +40,57 @@ function ChildTabs() {
             iconName = 'help-outline';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={22} color={color} />;
         },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarActiveTintColor: '#FF8C42',
+        tabBarInactiveTintColor: '#64748B',
         headerShown: true,
         headerStyle: {
-          backgroundColor: theme.colors.primary,
+          backgroundColor: 'transparent',
+          elevation: 0,
+          shadowColor: 'transparent',
         },
-        headerTintColor: '#fff',
+        headerTransparent: true,
+        headerTintColor: '#1A2332',
         headerTitleStyle: {
-          fontWeight: 'bold',
-          fontSize: 20,
+          fontWeight: '900',
+          fontSize: 28,
+          letterSpacing: -0.8,
+          color: '#1A2332',
         },
+        headerBackground: () => (
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            borderBottomWidth: 1,
+            borderBottomColor: 'rgba(26, 35, 50, 0.06)',
+          }} />
+        ),
         headerRight: () => <ProfileSwitcherButton />,
         tabBarStyle: {
-          height: 60,
+          height: 70,
           paddingBottom: 8,
+          paddingTop: 8,
+          paddingHorizontal: 8,
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255, 140, 66, 0.1)',
+          shadowColor: '#1A2332',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          elevation: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '700',
+          marginTop: 2,
+          letterSpacing: 0.2,
+        },
+        tabBarItemStyle: {
+          paddingHorizontal: 0,
+          gap: 2,
         },
       })}
     >
@@ -93,13 +128,27 @@ export default function ChildNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: theme.colors.primary,
+          backgroundColor: 'transparent',
+          elevation: 0,
+          shadowColor: 'transparent',
         },
-        headerTintColor: '#fff',
+        headerTransparent: true,
+        headerTintColor: '#1A2332',
         headerTitleStyle: {
-          fontWeight: 'bold',
-          fontSize: 20,
+          fontWeight: '900',
+          fontSize: 24,
+          letterSpacing: -0.6,
+          color: '#1A2332',
         },
+        headerBackground: () => (
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            borderBottomWidth: 1,
+            borderBottomColor: 'rgba(26, 35, 50, 0.06)',
+          }} />
+        ),
         headerRight: () => <ProfileSwitcherButton />,
       }}
     >

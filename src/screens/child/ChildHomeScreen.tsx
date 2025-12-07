@@ -60,21 +60,19 @@ export default function ChildHomeScreen({ navigation }: any) {
       }
 
       const newStories = data || [];
-      
-      // Check if there's a new unread story to celebrate
-      if (newStories.length > 0 && availableStories.length > 0) {
+
+      // Only show celebration for stories unlocked in the last 5 minutes
+      if (newStories.length > 0) {
         const latestStory = newStories[0];
-        const previousLatestStory = availableStories[0];
-        
-        // If we have a new story that wasn't there before, show celebration
-        if (latestStory.id !== previousLatestStory?.id && !latestStory.is_read) {
-          setCelebrationChapter(latestStory);
-          setShowCelebration(true);
-        }
-      } else if (newStories.length > 0 && availableStories.length === 0) {
-        // First story ever - show celebration
-        const latestStory = newStories[0];
-        if (!latestStory.is_read) {
+        const unlockedAt = new Date(latestStory.unlocked_at);
+        const now = new Date();
+        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+        // Show celebration if story was just unlocked and hasn't been read yet
+        const isRecentlyUnlocked = unlockedAt > fiveMinutesAgo;
+        const isNewStory = availableStories.length === 0 || latestStory.id !== availableStories[0]?.id;
+
+        if (isRecentlyUnlocked && !latestStory.is_read && isNewStory) {
           setCelebrationChapter(latestStory);
           setShowCelebration(true);
         }
@@ -231,73 +229,100 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
-    padding: theme.spacing.lg,
   },
+  // Hero welcome section with magical gradient overlay
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    fontSize: 38,
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
+    letterSpacing: -0.5,
+    marginTop: theme.spacing.lg,
+    paddingHorizontal: theme.spacing.lg,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 20,
     color: theme.colors.textSecondary,
     marginBottom: theme.spacing.xl,
+    fontWeight: '500',
+    paddingHorizontal: theme.spacing.lg,
   },
+  // Warm stat cards with phoenix orange glow
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    gap: theme.spacing.lg,
     marginBottom: theme.spacing.xl,
+    paddingHorizontal: theme.spacing.lg,
   },
   statBox: {
+    flex: 1,
     backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    borderRadius: 12,
+    padding: theme.spacing.xl,
+    borderRadius: 20,
     alignItems: 'center',
-    minWidth: 120,
+    shadowColor: '#FF8C42',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 140, 66, 0.1)',
   },
   statNumber: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: theme.colors.primary,
+    fontSize: 48,
+    fontWeight: '900',
+    color: '#FF8C42',
     marginBottom: theme.spacing.xs,
+    letterSpacing: -1,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.textSecondary,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
+  // Organic section containers with depth
   todaySection: {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    padding: theme.spacing.xl,
+    borderRadius: 32,
+    marginHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.lg,
+    borderWidth: 2,
+    borderColor: 'rgba(108, 92, 231, 0.08)',
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 26,
+    fontWeight: '800',
     color: theme.colors.text,
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    letterSpacing: -0.3,
   },
   emptyText: {
-    fontSize: 16,
+    fontSize: 18,
     color: theme.colors.textSecondary,
     textAlign: 'center',
     fontStyle: 'italic',
-    padding: theme.spacing.lg,
+    padding: theme.spacing.xl,
+    fontWeight: '500',
   },
   choresList: {
-    gap: theme.spacing.md,
+    gap: theme.spacing.lg,
   },
+  // Playful chore cards with shadows and hover states
   choreCard: {
-    backgroundColor: theme.colors.background,
-    borderRadius: 12,
-    padding: theme.spacing.lg,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 20,
+    padding: theme.spacing.xl,
+    borderWidth: 0,
+    shadowColor: '#6C5CE7',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+    borderLeftWidth: 6,
+    borderLeftColor: theme.colors.primary,
   },
   choreHeader: {
     flexDirection: 'row',
@@ -306,112 +331,143 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   choreTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
     color: theme.colors.text,
     flex: 1,
     marginRight: theme.spacing.md,
+    letterSpacing: -0.2,
   },
   pointsBadge: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 16,
+    backgroundColor: '#FFB347',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 999,
+    shadowColor: '#FFB347',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
   },
   pointsText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   choreDescription: {
-    fontSize: 14,
+    fontSize: 16,
     color: theme.colors.text,
-    lineHeight: 20,
-    marginBottom: theme.spacing.md,
+    lineHeight: 24,
+    marginBottom: theme.spacing.lg,
+    opacity: 0.8,
   },
   choreFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(108, 92, 231, 0.1)',
   },
   recurrenceText: {
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.textSecondary,
     textTransform: 'capitalize',
+    fontWeight: '600',
   },
   tapToComplete: {
-    fontSize: 12,
+    fontSize: 14,
     color: theme.colors.primary,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
+  // Story section with soft sky blue background
   storiesSection: {
-    backgroundColor: theme.colors.surface,
-    padding: theme.spacing.lg,
-    borderRadius: 12,
+    backgroundColor: 'rgba(184, 230, 245, 0.3)',
+    padding: theme.spacing.xl,
+    borderRadius: 20,
     marginTop: theme.spacing.lg,
+    marginHorizontal: theme.spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(79, 172, 254, 0.15)',
   },
   storiesHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
   viewAllButton: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: 8,
+    backgroundColor: '#4FACFE',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderRadius: 12,
+    shadowColor: '#4FACFE',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 4,
   },
   viewAllText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   storiesList: {
-    gap: theme.spacing.md,
+    gap: theme.spacing.lg,
   },
+  // Whimsical story cards with sky blue accents
   storyCard: {
-    backgroundColor: theme.colors.background,
-    borderRadius: 12,
+    backgroundColor: theme.colors.surface,
+    borderRadius: 16,
     padding: theme.spacing.lg,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: 'rgba(79, 172, 254, 0.2)',
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowColor: '#1A2332',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
   storyEmoji: {
-    fontSize: 24,
-    marginRight: theme.spacing.md,
+    fontSize: 40,
+    marginRight: theme.spacing.lg,
   },
   storyContent: {
     flex: 1,
   },
   storyTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    marginBottom: theme.spacing.sm,
+    letterSpacing: -0.2,
   },
   storyPreview: {
-    fontSize: 12,
+    fontSize: 14,
     color: theme.colors.textSecondary,
-    lineHeight: 16,
+    lineHeight: 20,
+    opacity: 0.8,
   },
   newBadge: {
-    backgroundColor: theme.colors.primary,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: 8,
-    marginLeft: theme.spacing.sm,
+    backgroundColor: '#00C9FF',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 999,
+    marginLeft: theme.spacing.md,
+    shadowColor: '#00C9FF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
   newText: {
     color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
 });

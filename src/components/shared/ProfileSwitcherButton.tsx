@@ -22,35 +22,30 @@ export default function ProfileSwitcherButton() {
     return 'Profile';
   };
 
-  const getProfileIcon = () => {
-    if (selectedProfile === 'parent') {
-      return 'person';
-    } else if (selectedProfile) {
-      return 'person-outline';
+  const getInitials = () => {
+    const name = getProfileName();
+    const words = name.split(' ');
+    if (words.length >= 2) {
+      return (words[0][0] + words[1][0]).toUpperCase();
     }
-    return 'person-outline';
+    return name.substring(0, 2).toUpperCase();
+  };
+
+  const getAvatarColor = () => {
+    if (selectedProfile === 'parent') {
+      return '#FFB347'; // Sunset Gold for parent
+    }
+    return '#4FACFE'; // Sky Blue for child
   };
 
   return (
     <>
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.avatarButton, { backgroundColor: getAvatarColor() }]}
         onPress={() => setShowProfileSwitcher(true)}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
       >
-        <Ionicons 
-          name={getProfileIcon() as keyof typeof Ionicons.glyphMap} 
-          size={20} 
-          color="#fff" 
-          style={{ marginRight: 6 }}
-        />
-        <Text style={styles.buttonText}>{getProfileName()}</Text>
-        <Ionicons 
-          name="chevron-down" 
-          size={16} 
-          color="#fff" 
-          style={{ marginLeft: 6 }}
-        />
+        <Text style={styles.initialsText}>{getInitials()}</Text>
       </TouchableOpacity>
 
       <ProfileSwitcher
@@ -62,17 +57,27 @@ export default function ProfileSwitcherButton() {
 }
 
 const styles = StyleSheet.create({
-  button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  // Beautiful circular avatar
+  avatarButton: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
-  buttonText: {
+  initialsText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
 });
