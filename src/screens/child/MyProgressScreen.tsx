@@ -312,6 +312,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     padding: theme.spacing.lg,
+    paddingTop: 100, // Added padding for header
   },
   loadingContainer: {
     flex: 1,

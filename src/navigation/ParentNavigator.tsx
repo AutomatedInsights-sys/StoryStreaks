@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { View } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,12 +53,27 @@ function ParentTabs() {
         tabBarInactiveTintColor: theme.colors.textSecondary,
         headerShown: true,
         headerStyle: {
-          backgroundColor: theme.colors.primary,
+          backgroundColor: 'transparent',
+          elevation: 0,
+          shadowColor: 'transparent',
         },
-        headerTintColor: '#fff',
+        headerTransparent: true,
+        headerTintColor: '#1A2332',
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: '900',
+          fontSize: 28,
+          letterSpacing: -0.8,
+          color: '#1A2332',
         },
+        headerBackground: () => (
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            borderBottomWidth: 1,
+            borderBottomColor: 'rgba(26, 35, 50, 0.06)',
+          }} />
+        ),
         headerRight: () => <ProfileSwitcherButton />,
       })}
     >
@@ -123,12 +139,27 @@ export default function ParentNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: theme.colors.primary,
+          backgroundColor: 'transparent',
+          elevation: 0,
+          shadowColor: 'transparent',
         },
-        headerTintColor: '#fff',
+        headerTransparent: true,
+        headerTintColor: '#1A2332',
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: '900',
+          fontSize: 24,
+          letterSpacing: -0.6,
+          color: '#1A2332',
         },
+        headerBackground: () => (
+          <View style={{
+            flex: 1,
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(20px)',
+            borderBottomWidth: 1,
+            borderBottomColor: 'rgba(26, 35, 50, 0.06)',
+          }} />
+        ),
         headerRight: () => <ProfileSwitcherButton />,
       }}
     >

@@ -39,6 +39,7 @@ export interface Chore {
   deadline?: string; // for one-time chores
   template_id?: string;
   parent_id: string;
+  icon?: string;
   created_at: string;
   updated_at: string;
 }
@@ -85,6 +86,7 @@ export interface RewardRedemption {
 
 export interface StoryChapter {
   id: string;
+  story_book_id?: string;
   child_id: string;
   chapter_number: number;
   title: string;
@@ -120,6 +122,26 @@ export interface Notification {
 }
 
 export type StoryWorld = 'magical_forest' | 'space_adventure' | 'underwater_kingdom';
+
+export interface StoryBook {
+  id: string;
+  child_id: string;
+  title: string;
+  theme: StoryWorld;
+  status: 'active' | 'completed';
+  total_chapters: number;
+  current_chapter: number;
+  outline: StoryChapterOutline[];
+  created_at: string;
+  completed_at?: string;
+  updated_at: string;
+}
+
+export interface StoryChapterOutline {
+  chapter_number: number;
+  title: string;
+  synopsis: string;
+}
 
 export interface ChoreTemplate {
   id: string;
@@ -186,6 +208,7 @@ export interface CreateChoreForm {
   recurrence: 'daily' | 'weekly' | 'one-time';
   assigned_to: string[];
   deadline?: Date;
+  icon?: string;
 }
 
 export interface CreateRewardForm {
@@ -235,6 +258,9 @@ export interface StoryGenerationRequest {
   completedChores: string[];
   previousChapterSummary?: string;
   chapterNumber: number;
+  bookId?: string;
+  chapterSynopsis?: string;
+  chapterTitle?: string;
 }
 
 export interface StoryGenerationResponse {
@@ -244,9 +270,18 @@ export interface StoryGenerationResponse {
   fallbackUsed?: boolean;
 }
 
+export interface StoryOutlineRequest {
+  childId: string;
+  childName: string;
+  ageBracket: string;
+  worldTheme: StoryWorld;
+  totalChapters: number;
+}
+
 export interface AIProvider {
   name: 'openai' | 'gemini' | 'claude';
   generateStory(request: StoryGenerationRequest): Promise<StoryGenerationResponse>;
+  generateStoryOutline(request: StoryOutlineRequest): Promise<StoryChapterOutline[]>;
   moderateContent(content: string): Promise<boolean>;
 }
 

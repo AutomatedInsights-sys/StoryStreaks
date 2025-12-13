@@ -4,7 +4,7 @@
     "slug": "StoryStreaks",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/ChoreyStoriesLogo.jpeg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "extra": {
@@ -27,7 +27,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/ChoreyStoriesLogo.jpeg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -39,7 +39,7 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/ChoreyStoriesLogo.jpeg"
     },
     "plugins": [
       [
