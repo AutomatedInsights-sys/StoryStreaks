@@ -339,7 +339,7 @@ export class AIStoryService {
 
       // Get synopsis from outline
       // Outline is JSONB, so we need to cast or treat as any
-      const outline = activeBook.outline as any[];
+      const outline = (activeBook.outline as any[]) || [];
       const outlineChapter = outline.find((o: any) => o.chapter_number === nextChapterNum);
       const chapterSynopsis = outlineChapter?.synopsis || '';
       const chapterTitle = outlineChapter?.title || `Chapter ${nextChapterNum}`;

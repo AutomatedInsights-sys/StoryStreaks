@@ -1,0 +1,2 @@
+
+ALTER TABLE public.chores ADD COLUMN IF NOT EXISTS icon TEXT DEFAULT '🧹';

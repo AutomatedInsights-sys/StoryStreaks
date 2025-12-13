@@ -501,6 +501,7 @@ const styles = StyleSheet.create({
   // Treasure gallery header with warm sunset glow
   header: {
     padding: theme.spacing.xl,
+    paddingTop: 100, // Added padding for header
     backgroundColor: 'rgba(255, 179, 71, 0.15)',
     borderBottomWidth: 0,
   },

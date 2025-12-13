@@ -27,6 +27,7 @@ export default function CreateChoreScreen() {
     recurrence: 'daily',
     assigned_to: [],
     deadline: undefined,
+    icon: '🧹',
   });
 
   const [errors, setErrors] = useState<Partial<CreateChoreForm>>({});
@@ -87,6 +88,7 @@ export default function CreateChoreScreen() {
           assigned_to: formData.assigned_to,
           deadline: formData.deadline?.toISOString(),
           parent_id: user.id,
+          icon: formData.icon,
         });
 
       if (error) {
@@ -148,6 +150,19 @@ export default function CreateChoreScreen() {
               placeholderTextColor={theme.colors.textSecondary}
             />
             {errors.title && <Text style={styles.errorText}>{errors.title}</Text>}
+          </View>
+
+          {/* Icon Input */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Icon (Emoji)</Text>
+            <TextInput
+              style={styles.input}
+              value={formData.icon}
+              onChangeText={(text) => setFormData(prev => ({ ...prev, icon: text }))}
+              placeholder="e.g., 🧹"
+              placeholderTextColor={theme.colors.textSecondary}
+              maxLength={2}
+            />
           </View>
 
           {/* Description Input */}

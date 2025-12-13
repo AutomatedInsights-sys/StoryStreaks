@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Image, TouchableOpacity } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,20 +52,15 @@ function ChildTabs() {
         },
         headerTransparent: true,
         headerTintColor: '#1A2332',
-        headerTitleStyle: {
-          fontWeight: '900',
-          fontSize: 28,
-          letterSpacing: -0.8,
-          color: '#1A2332',
-        },
-        headerBackground: () => (
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(255, 255, 255, 0.85)',
-            backdropFilter: 'blur(20px)',
-            borderBottomWidth: 1,
-            borderBottomColor: 'rgba(26, 35, 50, 0.06)',
-          }} />
+        headerTitle: '',
+        headerLeft: () => (
+          <View style={{ marginLeft: 16 }}>
+            <Image 
+              source={require('../../assets/ChoreyStoriesLogo.jpeg')} 
+              style={{ width: 40, height: 40, borderRadius: 8 }}
+              resizeMode="cover"
+            />
+          </View>
         ),
         headerRight: () => <ProfileSwitcherButton />,
         tabBarStyle: {
@@ -134,20 +129,15 @@ export default function ChildNavigator() {
         },
         headerTransparent: true,
         headerTintColor: '#1A2332',
-        headerTitleStyle: {
-          fontWeight: '900',
-          fontSize: 24,
-          letterSpacing: -0.6,
-          color: '#1A2332',
-        },
-        headerBackground: () => (
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(255, 255, 255, 0.85)',
-            backdropFilter: 'blur(20px)',
-            borderBottomWidth: 1,
-            borderBottomColor: 'rgba(26, 35, 50, 0.06)',
-          }} />
+        headerTitle: '',
+        headerLeft: () => (
+          <View style={{ marginLeft: 16 }}>
+            <Image 
+              source={require('../../assets/ChoreyStoriesLogo.jpeg')} 
+              style={{ width: 40, height: 40, borderRadius: 8 }}
+              resizeMode="cover"
+            />
+          </View>
         ),
         headerRight: () => <ProfileSwitcherButton />,
       }}
@@ -160,12 +150,60 @@ export default function ChildNavigator() {
       <Stack.Screen 
         name="ChoreDetail" 
         component={ChoreDetailScreen}
-        options={{ title: 'Chore Details' }}
+        options={({ navigation }) => ({
+          title: 'Chore Details',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+              </View>
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen 
         name="StoryReader" 
         component={StoryReaderScreen}
-        options={{ title: 'Story Reader' }}
+        options={({ navigation }) => ({
+          title: '',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+              </View>
+            </TouchableOpacity>
+          ),
+        })}
       />
     </Stack.Navigator>
   );

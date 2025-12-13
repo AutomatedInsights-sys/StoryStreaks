@@ -39,6 +39,7 @@ export interface Chore {
   deadline?: string; // for one-time chores
   template_id?: string;
   parent_id: string;
+  icon?: string;
   created_at: string;
   updated_at: string;
 }
@@ -207,6 +208,7 @@ export interface CreateChoreForm {
   recurrence: 'daily' | 'weekly' | 'one-time';
   assigned_to: string[];
   deadline?: Date;
+  icon?: string;
 }
 
 export interface CreateRewardForm {

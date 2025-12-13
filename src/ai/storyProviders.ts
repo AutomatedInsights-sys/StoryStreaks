@@ -143,6 +143,34 @@ export class OpenAIProvider implements AIProvider {
     return !inappropriateWords.some(word => lowerContent.includes(word));
   }
 
+  private buildOutlinePrompt(request: StoryOutlineRequest): string {
+    const worldDescriptions = {
+      magical_forest: 'a magical forest filled with talking animals, friendly fairies, and enchanted trees',
+      space_adventure: 'an exciting space adventure with friendly aliens, spaceships, and distant planets',
+      underwater_kingdom: 'a beautiful underwater kingdom with mermaids, sea creatures, and coral castles',
+    };
+    
+    const worldDescription = worldDescriptions[request.worldTheme] || worldDescriptions.magical_forest;
+
+    return `
+Create a ${request.totalChapters}-chapter story outline for a children's book featuring ${request.childName} (age ${request.ageBracket}).
+Setting: ${worldDescription}
+
+The output must be a valid JSON array of objects, where each object has:
+- "chapter_number": number
+- "title": string
+- "synopsis": string (1-2 sentences describing the plot points)
+
+Example format:
+[
+  { "chapter_number": 1, "title": "The Beginning", "synopsis": "..." },
+  ...
+]
+
+Make the story have a clear beginning, middle, and end.
+    `.trim();
+  }
+
   private buildPrompt(request: StoryGenerationRequest): string {
     const worldDescriptions = {
       magical_forest: 'a magical forest filled with talking animals, friendly fairies, and enchanted trees',
@@ -163,6 +191,13 @@ export class OpenAIProvider implements AIProvider {
       ? `IMPORTANT: This is Chapter ${request.chapterNumber}, continuing the ongoing story. Do NOT restart the story or introduce ${request.childName} as if they are new. Build directly on what happened in the previous chapter. Reference characters, events, and locations from previous chapters. Continue the story from where it left off.`
       : '';
 
+    const currentHour = new Date().getHours();
+    const isBedtime = currentHour >= 18; // 6 PM onwards
+
+    const lengthInstruction = isBedtime
+      ? "Length: 300-500 words. This is a bedtime story, so make it a bit longer and wrap up the day's adventures with a calming conclusion."
+      : "Length: 100-200 words. This is a quick daytime update, keep it short, punchy, and bite-sized.";
+
     return `
 Create a children's story chapter for ${request.childName}, a ${request.ageBracket}-year-old child.
 
@@ -181,7 +216,7 @@ ${request.previousChapterSummary ? `Previous chapter content (continue from here
 Requirements:
 - Make ${request.childName} the main character
 - ${isContinuation ? 'Continue the story seamlessly from the previous chapter. ' : ''}Keep it positive, educational, and safe
-- Length: 150-700 words
+- ${lengthInstruction}
 - ${ageGuidance}
 - Include a clear beginning, middle, and end
 - End with a sense of accomplishment or lesson learned
@@ -323,11 +358,11 @@ export class GeminiProvider implements AIProvider {
       
       // Try different Gemini models and API versions based on available models
       const modelConfigs = [
-        { model: 'gemini-2.5-pro', apiVersion: 'v1' },
         { model: 'gemini-2.5-flash', apiVersion: 'v1' },
         { model: 'gemini-2.0-flash', apiVersion: 'v1' },
-        { model: 'gemini-2.5-pro', apiVersion: 'v1beta' },
-        { model: 'gemini-2.5-flash', apiVersion: 'v1beta' }
+        { model: 'gemini-2.5-pro', apiVersion: 'v1' },
+        { model: 'gemini-2.5-flash', apiVersion: 'v1beta' },
+        { model: 'gemini-2.5-pro', apiVersion: 'v1beta' }
       ];
       let lastError = null;
       
@@ -445,6 +480,13 @@ Make the story have a clear beginning, middle, and end.
       ? `IMPORTANT: This is Chapter ${request.chapterNumber}, continuing the ongoing story. Do NOT restart the story or introduce ${request.childName} as if they are new. Build directly on what happened in the previous chapter. Reference characters, events, and locations from previous chapters. Continue the story from where it left off.`
       : '';
 
+    const currentHour = new Date().getHours();
+    const isBedtime = currentHour >= 18; // 6 PM onwards
+
+    const lengthInstruction = isBedtime
+      ? "Length: 300-500 words. This is a bedtime story, so make it a bit longer and wrap up the day's adventures with a calming conclusion."
+      : "Length: 100-200 words. This is a quick daytime update, keep it short, punchy, and bite-sized.";
+
     return `Write a children's story chapter for ${request.childName} (age ${request.ageBracket}) set in ${worldDescription}. 
     
     ${isContinuation ? continuationInstructions : ''}
@@ -457,7 +499,9 @@ Make the story have a clear beginning, middle, and end.
 
     ${request.previousChapterSummary ? `Previous chapter content (continue from here):\n${request.previousChapterSummary}` : ''}
 
-    Make it positive, safe, 150-700 words, age-appropriate, and educational. ${isContinuation ? 'Reference and build upon events, characters, and locations from previous chapters.' : ''}
+    Make it positive, safe, age-appropriate, and educational.
+    ${lengthInstruction}
+    ${isContinuation ? 'Reference and build upon events, characters, and locations from previous chapters.' : ''}
     
     IMPORTANT: The FIRST line of your response must be the Chapter Title (e.g., "Chapter ${request.chapterNumber}: The Adventure Begins").
     `;

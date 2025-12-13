@@ -263,6 +263,7 @@ const styles = StyleSheet.create({
   // Compact magical header
   header: {
     padding: theme.spacing.xl,
+    paddingTop: 100, // Added padding for header
     paddingBottom: theme.spacing.lg,
     backgroundColor: theme.colors.background,
   },

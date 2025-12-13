@@ -143,7 +143,7 @@ export default function StoriesListScreen({ navigation }: any) {
   const renderStartBookButton = () => (
     <View style={styles.startBookContainer}>
       <Text style={styles.startBookTitle}>Ready for a new adventure?</Text>
-      <Text style={styles.startBookSubtitle}>Start a new book in the {currentChild?.world_theme.replace('_', ' ')}!</Text>
+      <Text style={styles.startBookSubtitle}>Start a new book in the {currentChild?.world_theme ? currentChild.world_theme.replace('_', ' ') : 'magical world'}!</Text>
       <TouchableOpacity 
         style={styles.startBookButton}
         onPress={handleStartBook}
@@ -259,6 +259,7 @@ const styles = StyleSheet.create({
   // Twilight sky header with soft blue glow
   header: {
     padding: theme.spacing.xl,
+    paddingTop: 100, // Added top padding for transparent header
     backgroundColor: 'rgba(184, 230, 245, 0.3)',
     borderBottomWidth: 0,
     borderBottomColor: 'rgba(79, 172, 254, 0.15)',
