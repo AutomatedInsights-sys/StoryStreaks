@@ -14,11 +14,58 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
-import { Chore, StoryBook, StoryChapter } from '../../types';
+import { Chore, ChoreCompletion, StoryBook, StoryChapter } from '../../types';
 import { theme } from '../../utils/theme';
 import StoryUnlockCelebration from '../../components/shared/StoryUnlockCelebration';
 
 const { width } = Dimensions.get('window');
+
+// Helper function to get the start of today (midnight local time)
+const getStartOfToday = (): Date => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+// Helper function to get the start of the current week (Monday)
+const getStartOfWeek = (): Date => {
+  const now = new Date();
+  const day = now.getDay();
+  // Adjust so Monday is the first day of the week (day 1)
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(now.getFullYear(), now.getMonth(), diff);
+};
+
+// Helper function to check if a chore is already completed for the current period
+const isChoreCompletedForPeriod = (
+  chore: Chore, 
+  completions: ChoreCompletion[]
+): boolean => {
+  // Get completions for this chore that are pending or approved (rejected can be retried)
+  const choreCompletions = completions.filter(
+    c => c.chore_id === chore.id && (c.status === 'pending' || c.status === 'approved')
+  );
+
+  if (choreCompletions.length === 0) return false;
+
+  switch (chore.recurrence) {
+    case 'one-time':
+      // One-time chores are done once they have any pending/approved completion
+      return true;
+
+    case 'daily':
+      // Daily chores reset at midnight
+      const startOfToday = getStartOfToday();
+      return choreCompletions.some(c => new Date(c.completed_at) >= startOfToday);
+
+    case 'weekly':
+      // Weekly chores reset at the start of the week (Monday)
+      const startOfWeek = getStartOfWeek();
+      return choreCompletions.some(c => new Date(c.completed_at) >= startOfWeek);
+
+    default:
+      return false;
+  }
+};
 
 // Category definitions for the filter
 const CATEGORIES = [
@@ -54,7 +101,23 @@ export default function ChildHomeScreen({ navigation }: any) {
         .order('created_at', { ascending: false });
 
       if (choresError) console.error('Error fetching chores:', choresError);
-      setAssignedChores(choresData || []);
+
+      // 2. Fetch chore completions for this child
+      const { data: completionsData, error: completionsError } = await supabase
+        .from('chore_completions')
+        .select('*')
+        .eq('child_id', currentChild.id);
+
+      if (completionsError) console.error('Error fetching completions:', completionsError);
+      
+      // 3. Filter out chores that are already completed for the current period
+      const allChores = choresData || [];
+      const completions = (completionsData || []) as ChoreCompletion[];
+      const upcomingChores = allChores.filter(
+        chore => !isChoreCompletedForPeriod(chore, completions)
+      );
+      
+      setAssignedChores(upcomingChores);
 
       // 2. Fetch Story Books
       const { data: booksData, error: booksError } = await supabase

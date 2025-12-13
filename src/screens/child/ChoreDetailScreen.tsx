@@ -19,8 +19,55 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { NotificationService } from '../../services/notificationService';
-import { Chore } from '../../types';
+import { Chore, ChoreCompletion } from '../../types';
 import { theme } from '../../utils/theme';
+
+// Helper function to get the start of today (midnight local time)
+const getStartOfToday = (): Date => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+};
+
+// Helper function to get the start of the current week (Monday)
+const getStartOfWeek = (): Date => {
+  const now = new Date();
+  const day = now.getDay();
+  // Adjust so Monday is the first day of the week (day 1)
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(now.getFullYear(), now.getMonth(), diff);
+};
+
+// Helper function to check if a chore is already completed for the current period
+const isChoreCompletedForPeriod = (
+  chore: Chore, 
+  completions: ChoreCompletion[]
+): boolean => {
+  // Get completions for this chore that are pending or approved (rejected can be retried)
+  const choreCompletions = completions.filter(
+    c => c.chore_id === chore.id && (c.status === 'pending' || c.status === 'approved')
+  );
+
+  if (choreCompletions.length === 0) return false;
+
+  switch (chore.recurrence) {
+    case 'one-time':
+      // One-time chores are done once they have any pending/approved completion
+      return true;
+
+    case 'daily':
+      // Daily chores reset at midnight
+      const startOfToday = getStartOfToday();
+      return choreCompletions.some(c => new Date(c.completed_at) >= startOfToday);
+
+    case 'weekly':
+      // Weekly chores reset at the start of the week (Monday)
+      const startOfWeek = getStartOfWeek();
+      return choreCompletions.some(c => new Date(c.completed_at) >= startOfWeek);
+
+    default:
+      return false;
+  }
+};
 
 export default function ChoreDetailScreen({ route, navigation }: any) {
   const { choreId } = route.params;
@@ -29,13 +76,17 @@ export default function ChoreDetailScreen({ route, navigation }: any) {
   const [isLoading, setIsLoading] = useState(true);
   const [isCompleting, setIsCompleting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isAlreadyCompleted, setIsAlreadyCompleted] = useState(false);
 
   useEffect(() => {
     fetchChoreDetails();
   }, [choreId]);
 
   const fetchChoreDetails = async () => {
+    if (!currentChild?.id) return;
+    
     try {
+      // Fetch chore details
       const { data, error } = await supabase
         .from('chores')
         .select('*')
@@ -49,6 +100,21 @@ export default function ChoreDetailScreen({ route, navigation }: any) {
       }
 
       setChore(data);
+      
+      // Fetch completions to check if already completed for current period
+      const { data: completionsData, error: completionsError } = await supabase
+        .from('chore_completions')
+        .select('*')
+        .eq('chore_id', choreId)
+        .eq('child_id', currentChild.id);
+
+      if (completionsError) {
+        console.error('Error fetching completions:', completionsError);
+      } else {
+        const completions = (completionsData || []) as ChoreCompletion[];
+        const alreadyCompleted = isChoreCompletedForPeriod(data, completions);
+        setIsAlreadyCompleted(alreadyCompleted);
+      }
     } catch (error) {
       console.error('Error fetching chore details:', error);
       Alert.alert('Error', 'Failed to load chore details');
@@ -140,6 +206,12 @@ export default function ChoreDetailScreen({ route, navigation }: any) {
 
   const completeChore = async () => {
     if (!chore || !currentChild) return;
+    
+    // Double-check that the chore isn't already completed
+    if (isAlreadyCompleted) {
+      Alert.alert('Already Completed', 'This chore has already been completed for the current period.');
+      return;
+    }
 
     setIsCompleting(true);
 
@@ -324,17 +396,30 @@ export default function ChoreDetailScreen({ route, navigation }: any) {
       </ScrollView>
 
       <View style={styles.bottomSection}>
-        <TouchableOpacity
-          style={styles.completeButton}
-          onPress={completeChore}
-          disabled={isCompleting}
-        >
-          {isCompleting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.completeButtonText}>Mark as Complete</Text>
-          )}
-        </TouchableOpacity>
+        {isAlreadyCompleted ? (
+          <View style={styles.completedMessage}>
+            <Text style={styles.completedEmoji}>✅</Text>
+            <Text style={styles.completedText}>
+              {chore?.recurrence === 'one-time' 
+                ? 'This chore has been completed!'
+                : chore?.recurrence === 'daily'
+                ? 'You already completed this chore today! Come back tomorrow.'
+                : 'You already completed this chore this week! Come back next week.'}
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.completeButton}
+            onPress={completeChore}
+            disabled={isCompleting}
+          >
+            {isCompleting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.completeButtonText}>Mark as Complete</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -505,5 +590,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  completedMessage: {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.lg,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: theme.colors.success,
+  },
+  completedEmoji: {
+    fontSize: 32,
+    marginBottom: theme.spacing.sm,
+  },
+  completedText: {
+    color: theme.colors.text,
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
