@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Image, TouchableOpacity } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,10 +47,10 @@ function ParentTabs() {
             iconName = 'help-outline';
           }
 
-          return <Ionicons name={iconName} size={size} color={color} />;
+          return <Ionicons name={iconName} size={22} color={color} />;
         },
-        tabBarActiveTintColor: theme.colors.primary,
-        tabBarInactiveTintColor: theme.colors.textSecondary,
+        tabBarActiveTintColor: '#FF8C42',
+        tabBarInactiveTintColor: '#64748B',
         headerShown: true,
         headerStyle: {
           backgroundColor: 'transparent',
@@ -59,22 +59,41 @@ function ParentTabs() {
         },
         headerTransparent: true,
         headerTintColor: '#1A2332',
-        headerTitleStyle: {
-          fontWeight: '900',
-          fontSize: 28,
-          letterSpacing: -0.8,
-          color: '#1A2332',
-        },
-        headerBackground: () => (
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(255, 255, 255, 0.85)',
-            backdropFilter: 'blur(20px)',
-            borderBottomWidth: 1,
-            borderBottomColor: 'rgba(26, 35, 50, 0.06)',
-          }} />
+        headerTitle: '',
+        headerLeft: () => (
+          <View style={{ marginLeft: 16 }}>
+            <Image 
+              source={require('../../assets/ChoreyStoriesLogo.jpeg')} 
+              style={{ width: 40, height: 40, borderRadius: 8 }}
+              resizeMode="cover"
+            />
+          </View>
         ),
         headerRight: () => <ProfileSwitcherButton />,
+        tabBarStyle: {
+          height: 70,
+          paddingBottom: 8,
+          paddingTop: 8,
+          paddingHorizontal: 8,
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255, 140, 66, 0.1)',
+          shadowColor: '#1A2332',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          elevation: 4,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '700',
+          marginTop: 2,
+          letterSpacing: 0.2,
+        },
+        tabBarItemStyle: {
+          paddingHorizontal: 0,
+          gap: 2,
+        },
       })}
     >
       <Tab.Screen 
@@ -145,20 +164,15 @@ export default function ParentNavigator() {
         },
         headerTransparent: true,
         headerTintColor: '#1A2332',
-        headerTitleStyle: {
-          fontWeight: '900',
-          fontSize: 24,
-          letterSpacing: -0.6,
-          color: '#1A2332',
-        },
-        headerBackground: () => (
-          <View style={{
-            flex: 1,
-            backgroundColor: 'rgba(255, 255, 255, 0.85)',
-            backdropFilter: 'blur(20px)',
-            borderBottomWidth: 1,
-            borderBottomColor: 'rgba(26, 35, 50, 0.06)',
-          }} />
+        headerTitle: '',
+        headerLeft: () => (
+          <View style={{ marginLeft: 16 }}>
+            <Image 
+              source={require('../../assets/ChoreyStoriesLogo.jpeg')} 
+              style={{ width: 40, height: 40, borderRadius: 8 }}
+              resizeMode="cover"
+            />
+          </View>
         ),
         headerRight: () => <ProfileSwitcherButton />,
       }}
@@ -171,37 +185,205 @@ export default function ParentNavigator() {
       <Stack.Screen 
         name="CreateChore" 
         component={CreateChoreScreen}
-        options={{ title: 'Create Chore' }}
+        options={({ navigation }) => ({
+          title: 'Create Chore',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+              </View>
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen 
         name="EditChore" 
         component={EditChoreScreen}
-        options={{ title: 'Edit Chore' }}
+        options={({ navigation }) => ({
+          title: 'Edit Chore',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+              </View>
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen 
         name="ChoreApproval" 
         component={ChoreApprovalScreen}
-        options={{ title: 'Approve Chores' }}
+        options={({ navigation }) => ({
+          title: 'Approve Chores',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+              </View>
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen 
         name="RewardsManagement" 
         component={RewardsManagementScreen}
-        options={{ title: 'Rewards' }}
+        options={({ navigation }) => ({
+          title: 'Rewards',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+              </View>
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen 
         name="RewardRequests" 
         component={RewardRequestsScreen}
-        options={{ title: 'Reward Requests' }}
+        options={({ navigation }) => ({
+          title: 'Reward Requests',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+              </View>
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen 
         name="ChildDetail" 
         component={ChildDetailScreen}
-        options={{ title: 'Child Details' }}
+        options={({ navigation }) => ({
+          title: 'Child Details',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+              </View>
+            </TouchableOpacity>
+          ),
+        })}
       />
       <Stack.Screen 
         name="CreateChild" 
         component={CreateChildScreen}
-        options={{ title: 'Add New Child' }}
+        options={({ navigation }) => ({
+          title: 'Add New Child',
+          headerLeft: () => (
+            <TouchableOpacity 
+              onPress={() => navigation.goBack()}
+              style={{ marginLeft: 16 }}
+            >
+              <View style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: '#fff',
+                justifyContent: 'center',
+                alignItems: 'center',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}>
+                <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
+              </View>
+            </TouchableOpacity>
+          ),
+        })}
       />
     </Stack.Navigator>
   );

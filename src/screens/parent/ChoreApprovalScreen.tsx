@@ -371,19 +371,19 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    paddingTop: 60,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   scrollView: {
     flex: 1,

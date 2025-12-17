@@ -152,9 +152,12 @@ export default function ParentHomeScreen({ navigation }: any) {
           <RefreshControl refreshing={isRefreshing} onRefresh={onRefresh} />
         }
       >
+      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Welcome back, {user?.name}!</Text>
-        <Text style={styles.subtitle}>Track your children's progress</Text>
+        <View>
+          <Text style={styles.title}>Hello, {user?.name}!</Text>
+          <Text style={styles.subtitle}>Track your children's progress</Text>
+        </View>
       </View>
 
       <View style={styles.quickActions}>
@@ -162,7 +165,8 @@ export default function ParentHomeScreen({ navigation }: any) {
           style={styles.actionButton}
           onPress={() => navigation.navigate('CreateChore')}
         >
-          <Text style={styles.actionButtonText}>+ Create Chore</Text>
+          <Ionicons name="add-circle-outline" size={24} color="#fff" />
+          <Text style={styles.actionButtonText}>Create Chore</Text>
         </TouchableOpacity>
         
         <TouchableOpacity
@@ -170,7 +174,8 @@ export default function ParentHomeScreen({ navigation }: any) {
           onPress={() => navigation.navigate('ChoreApproval')}
         >
           <View style={styles.actionButtonContent}>
-            <Text style={styles.actionButtonText}>Review Chores</Text>
+            <Ionicons name="checkmark-circle-outline" size={24} color="#fff" />
+            <Text style={styles.actionButtonText}>Review</Text>
             {pendingApprovalsCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{pendingApprovalsCount}</Text>
@@ -184,12 +189,8 @@ export default function ParentHomeScreen({ navigation }: any) {
           onPress={() => navigation.navigate('RewardsManagement')}
         >
           <View style={styles.actionButtonContent}>
-            <Text style={styles.actionButtonText}>Manage Rewards</Text>
-            {activeRewardsCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{activeRewardsCount}</Text>
-              </View>
-            )}
+            <Ionicons name="gift-outline" size={24} color="#fff" />
+            <Text style={styles.actionButtonText}>Rewards</Text>
           </View>
         </TouchableOpacity>
 
@@ -198,7 +199,8 @@ export default function ParentHomeScreen({ navigation }: any) {
           onPress={() => navigation.navigate('RewardRequests')}
         >
           <View style={styles.actionButtonContent}>
-            <Text style={styles.actionButtonText}>Reward Requests</Text>
+            <Ionicons name="hand-left-outline" size={24} color="#fff" />
+            <Text style={styles.actionButtonText}>Requests</Text>
             {pendingRewardRequests > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{pendingRewardRequests}</Text>
@@ -279,44 +281,53 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    marginTop: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    paddingTop: 60,
   },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  title: {
+    fontSize: 28,
+    fontWeight: '800',
     color: theme.colors.text,
-    marginBottom: theme.spacing.xs,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   quickActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: theme.spacing.lg,
-    gap: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   actionButton: {
-    flexBasis: '30%',
-    flexGrow: 1,
+    flexBasis: '48%',
+    flexGrow: 0,
+    flexShrink: 0,
     backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: 8,
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   actionButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    justifyContent: 'center',
+    gap: theme.spacing.xs,
   },
   actionButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 14,
+    fontWeight: '700',
   },
   badge: {
     backgroundColor: theme.colors.error,
