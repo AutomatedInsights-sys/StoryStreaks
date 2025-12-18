@@ -110,6 +110,12 @@ export class AIStoryService {
         const savedChapter = await this.saveChapterToDatabase(result.chapter);
         if (savedChapter) {
           result.chapter = savedChapter;
+        } else {
+          // If save failed, mark result as failed to prevent book.current_chapter from being updated incorrectly
+          console.error('Failed to save chapter to database, marking result as failed');
+          result.success = false;
+          result.error = 'Failed to save chapter to database';
+          result.chapter = undefined;
         }
       }
 
@@ -215,6 +221,7 @@ export class AIStoryService {
     const chapter: StoryChapter = {
       id: '', // Will be set by database
       child_id: request.childId,
+      story_book_id: request.bookId, // Include story_book_id to avoid legacy constraint violation
       chapter_number: request.chapterNumber,
       title: fallbackStory.title,
       content: fallbackStory.content,
@@ -227,9 +234,18 @@ export class AIStoryService {
 
     const savedChapter = await this.saveChapterToDatabase(chapter);
 
+    if (!savedChapter) {
+      console.error('Failed to save fallback chapter to database');
+      return {
+        success: false,
+        error: 'Failed to save fallback chapter to database',
+        fallbackUsed: true,
+      };
+    }
+
     return {
       success: true,
-      chapter: savedChapter || chapter,
+      chapter: savedChapter,
       fallbackUsed: true,
     };
   }

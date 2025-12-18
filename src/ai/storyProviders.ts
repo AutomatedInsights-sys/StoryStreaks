@@ -191,13 +191,6 @@ Make the story have a clear beginning, middle, and end.
       ? `IMPORTANT: This is Chapter ${request.chapterNumber}, continuing the ongoing story. Do NOT restart the story or introduce ${request.childName} as if they are new. Build directly on what happened in the previous chapter. Reference characters, events, and locations from previous chapters. Continue the story from where it left off.`
       : '';
 
-    const currentHour = new Date().getHours();
-    const isBedtime = currentHour >= 18; // 6 PM onwards
-
-    const lengthInstruction = isBedtime
-      ? "Length: 300-500 words. This is a bedtime story, so make it a bit longer and wrap up the day's adventures with a calming conclusion."
-      : "Length: 100-200 words. This is a quick daytime update, keep it short, punchy, and bite-sized.";
-
     return `
 Create a children's story chapter for ${request.childName}, a ${request.ageBracket}-year-old child.
 
@@ -216,7 +209,7 @@ ${request.previousChapterSummary ? `Previous chapter content (continue from here
 Requirements:
 - Make ${request.childName} the main character
 - ${isContinuation ? 'Continue the story seamlessly from the previous chapter. ' : ''}Keep it positive, educational, and safe
-- ${lengthInstruction}
+- Length: 150-700 words
 - ${ageGuidance}
 - Include a clear beginning, middle, and end
 - End with a sense of accomplishment or lesson learned
@@ -480,13 +473,6 @@ Make the story have a clear beginning, middle, and end.
       ? `IMPORTANT: This is Chapter ${request.chapterNumber}, continuing the ongoing story. Do NOT restart the story or introduce ${request.childName} as if they are new. Build directly on what happened in the previous chapter. Reference characters, events, and locations from previous chapters. Continue the story from where it left off.`
       : '';
 
-    const currentHour = new Date().getHours();
-    const isBedtime = currentHour >= 18; // 6 PM onwards
-
-    const lengthInstruction = isBedtime
-      ? "Length: 300-500 words. This is a bedtime story, so make it a bit longer and wrap up the day's adventures with a calming conclusion."
-      : "Length: 100-200 words. This is a quick daytime update, keep it short, punchy, and bite-sized.";
-
     return `Write a children's story chapter for ${request.childName} (age ${request.ageBracket}) set in ${worldDescription}. 
     
     ${isContinuation ? continuationInstructions : ''}
@@ -499,9 +485,7 @@ Make the story have a clear beginning, middle, and end.
 
     ${request.previousChapterSummary ? `Previous chapter content (continue from here):\n${request.previousChapterSummary}` : ''}
 
-    Make it positive, safe, age-appropriate, and educational.
-    ${lengthInstruction}
-    ${isContinuation ? 'Reference and build upon events, characters, and locations from previous chapters.' : ''}
+    Make it positive, safe, 150-700 words, age-appropriate, and educational. ${isContinuation ? 'Reference and build upon events, characters, and locations from previous chapters.' : ''}
     
     IMPORTANT: The FIRST line of your response must be the Chapter Title (e.g., "Chapter ${request.chapterNumber}: The Adventure Begins").
     `;
