@@ -117,7 +117,13 @@ export default function StoriesListScreen({ navigation }: any) {
   const renderBookHeader = () => {
     if (!activeBook) return null;
     
-    const unlockedCount = chapters.length;
+    // Use activeBook.current_chapter for display (authoritative source)
+    // but also verify against actual chapters to catch any inconsistencies
+    const actualChapterCount = chapters.length;
+    const bookChapterCount = activeBook.current_chapter || 0;
+    // Use the higher of the two to ensure we show the correct count
+    // (book.current_chapter is updated when chapter is generated)
+    const unlockedCount = Math.max(actualChapterCount, bookChapterCount);
     const total = activeBook.total_chapters;
     const progress = Math.min(unlockedCount / total, 1);
     

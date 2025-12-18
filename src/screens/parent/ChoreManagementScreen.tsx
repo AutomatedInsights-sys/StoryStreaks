@@ -392,16 +392,19 @@ const styles = StyleSheet.create({
   header: {
     padding: theme.spacing.lg,
     paddingBottom: theme.spacing.md,
+    paddingTop: 60,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     color: theme.colors.textSecondary,
+    fontWeight: '500',
   },
   controls: {
     paddingHorizontal: theme.spacing.lg,

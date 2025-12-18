@@ -91,12 +91,14 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
     padding: theme.spacing.lg,
+    paddingTop: 60,
   },
   title: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.xl,
+    letterSpacing: -0.5,
   },
   userInfo: {
     backgroundColor: theme.colors.surface,

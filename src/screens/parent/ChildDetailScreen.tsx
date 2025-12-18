@@ -393,6 +393,7 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+    paddingTop: 60,
   },
   headerCard: {
     backgroundColor: theme.colors.surface,

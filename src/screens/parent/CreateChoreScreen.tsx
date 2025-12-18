@@ -78,18 +78,28 @@ export default function CreateChoreScreen() {
     setLoading(true);
 
     try {
-      const { error } = await supabase
+      // Build insert data - icon column may not exist in older schemas
+      const insertData: any = {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        points: formData.points,
+        recurrence: formData.recurrence,
+        assigned_to: formData.assigned_to,
+        deadline: formData.deadline?.toISOString(),
+        parent_id: user.id,
+      };
+      
+      // Try with icon first, fall back without if column doesn't exist
+      let { error } = await supabase
         .from('chores')
-        .insert({
-          title: formData.title.trim(),
-          description: formData.description.trim(),
-          points: formData.points,
-          recurrence: formData.recurrence,
-          assigned_to: formData.assigned_to,
-          deadline: formData.deadline?.toISOString(),
-          parent_id: user.id,
-          icon: formData.icon,
-        });
+        .insert({ ...insertData, icon: formData.icon });
+      
+      // If icon column doesn't exist, retry without it
+      if (error?.code === 'PGRST204' && error?.message?.includes('icon')) {
+        console.log('Icon column not found, retrying without icon...');
+        const result = await supabase.from('chores').insert(insertData);
+        error = result.error;
+      }
 
       if (error) {
         throw error;
@@ -105,9 +115,10 @@ export default function CreateChoreScreen() {
           },
         ]
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating chore:', error);
-      Alert.alert('Error', 'Failed to create chore. Please try again.');
+      const errorMessage = error?.message || error?.details || JSON.stringify(error);
+      Alert.alert('Error', `Failed to create chore: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -337,17 +348,20 @@ const styles = StyleSheet.create({
   header: {
     padding: theme.spacing.lg,
     paddingBottom: theme.spacing.md,
+    paddingTop: 60,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '800',
     color: theme.colors.text,
     marginBottom: theme.spacing.sm,
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
     color: theme.colors.textSecondary,
     lineHeight: 22,
+    fontWeight: '500',
   },
   form: {
     paddingHorizontal: theme.spacing.lg,
