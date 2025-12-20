@@ -1,7 +1,7 @@
 // Test script to check available Gemini models
 // Run this with: node test_gemini_models.js
 
-const GEMINI_API_KEY = 'AIzaSyDm8auXuWAfTvR6zTMMX1Als3sJh60S0CY';
+const GEMINI_API_KEY = 'your-gemini-key-here';
 
 async function listGeminiModels() {
   console.log('🔍 Testing Gemini API models...');

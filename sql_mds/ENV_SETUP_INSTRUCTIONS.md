@@ -10,7 +10,7 @@ Create a file named `.env` in your project root (same level as `package.json`):
 
 ```bash
 # AI Provider API Keys
-EXPO_PUBLIC_GEMINI_API_KEY=AIzaSyDm8auXuWAfTvR6zTMMX1Als3sJh6OS0CY
+EXPO_PUBLIC_GEMINI_API_KEY=your-new-gemini-key-here
 EXPO_PUBLIC_OPENAI_API_KEY=your_openai_key_here
 EXPO_PUBLIC_CLAUDE_API_KEY=your_claude_key_here
 
@@ -49,7 +49,7 @@ You should see:
 🔑 Initializing AI providers...
 🔑 Default provider: gemini
 🔑 Expo config extra: { defaultAIProvider: 'gemini', ... }
-🔑 Gemini key found: true AIzaSyDm8a...
+🔑 Gemini key found: true AIzaSy...
 🔑 Gemini provider initialized
 🔑 Total providers initialized: 1
 🔑 Available providers: ['gemini']
@@ -65,10 +65,10 @@ Make sure `.env` is in the project root (same folder as `package.json`).
 Make sure there are no spaces around the `=` sign:
 ```bash
 # Correct
-EXPO_PUBLIC_GEMINI_API_KEY=AIzaSyDm8auXuWAfTvR6zTMMX1Als3sJh6OS0CY
+EXPO_PUBLIC_GEMINI_API_KEY=your-new-gemini-key-here
 
 # Incorrect
-EXPO_PUBLIC_GEMINI_API_KEY = AIzaSyDm8auXuWAfTvR6zTMMX1Als3sJh6OS0CY
+EXPO_PUBLIC_GEMINI_API_KEY = your-new-gemini-key-here
 ```
 
 ### **Check API Key Format**

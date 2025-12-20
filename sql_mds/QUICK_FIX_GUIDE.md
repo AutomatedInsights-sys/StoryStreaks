@@ -39,7 +39,7 @@ Create a `.env` file in your project root:
 
 ```bash
 # AI Provider API Keys
-EXPO_PUBLIC_GEMINI_API_KEY=AIzaSyDm8auXuWAfTvR6zTMMX1Als3sJh6OS0CY
+EXPO_PUBLIC_GEMINI_API_KEY=your-new-gemini-key-here
 EXPO_PUBLIC_OPENAI_API_KEY=your_openai_key_here
 EXPO_PUBLIC_CLAUDE_API_KEY=your_claude_key_here
 
@@ -81,7 +81,7 @@ After the fix, you should see these logs:
 ```
 🔑 Initializing AI providers...
 🔑 Default provider: gemini
-🔑 Gemini key found: true AIzaSyDm8a...
+🔑 Gemini key found: true AIzaSy...
 🔑 Gemini provider initialized
 🔑 Total providers initialized: 1
 📚 Story generated successfully: Chapter 3: The Helpful Fairy
