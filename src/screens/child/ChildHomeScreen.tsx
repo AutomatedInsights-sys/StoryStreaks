@@ -193,28 +193,43 @@ export default function ChildHomeScreen({ navigation }: any) {
   });
 
   // Render a book card
-  const renderBookCard = ({ item: book }: { item: StoryBook }) => (
-    <TouchableOpacity
-      style={[styles.bookCard, { backgroundColor: getThemeColor(book.theme) }]}
-      onPress={() => {
-        // Navigate to book details or reader - simplified to StoriesList for now or Reader if we had logic
-        navigation.navigate('StoriesList'); 
-      }}
-    >
-      <View style={styles.bookCardContent}>
-        <View style={styles.bookInfo}>
-          <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
-          <Text style={styles.bookChapters}>{book.current_chapter} Chapters</Text>
+  const renderBookCard = ({ item: book }: { item: StoryBook }) => {
+    // Use the book's cover_image directly (selected once when book was created)
+    const coverImage = book.cover_image;
+    
+    return (
+      <TouchableOpacity
+        style={[styles.bookCard, { backgroundColor: getThemeColor(book.theme) }]}
+        onPress={() => {
+          // Navigate to book details, passing the book ID to show its chapters
+          navigation.navigate('StoriesList', { bookId: book.id }); 
+        }}
+      >
+        <View style={styles.bookCardContent}>
+          <View style={styles.bookInfo}>
+            <Text style={styles.bookTitle} numberOfLines={2}>{book.title}</Text>
+            <Text style={styles.bookChapters}>{book.current_chapter} Chapters</Text>
+          </View>
+          {coverImage ? (
+            <View style={styles.bookImageContainer}>
+              <Image 
+                source={{ uri: coverImage }} 
+                style={styles.bookCoverImage}
+                resizeMode="cover"
+              />
+            </View>
+          ) : (
+            <View style={styles.bookImagePlaceholder}>
+              <Text style={styles.bookEmoji}>{getThemeEmoji(book.theme)}</Text>
+            </View>
+          )}
         </View>
-        <View style={styles.bookImagePlaceholder}>
-           <Text style={styles.bookEmoji}>{getThemeEmoji(book.theme)}</Text>
-        </View>
-      </View>
-      {/* Stack effect visuals */}
-      <View style={[styles.cardStack, { bottom: -5, width: '90%', zIndex: -1 }]} />
-      <View style={[styles.cardStack, { bottom: -10, width: '80%', zIndex: -2 }]} />
-    </TouchableOpacity>
-  );
+        {/* Stack effect visuals */}
+        <View style={[styles.cardStack, { bottom: -5, width: '90%', zIndex: -1 }]} />
+        <View style={[styles.cardStack, { bottom: -10, width: '80%', zIndex: -2 }]} />
+      </TouchableOpacity>
+    );
+  };
 
   const getThemeColor = (themeName: string) => {
     switch (themeName) {
@@ -516,6 +531,16 @@ const styles = StyleSheet.create({
   },
   bookEmoji: {
       fontSize: 60,
+  },
+  bookImageContainer: {
+      flex: 1,
+      borderRadius: 16,
+      overflow: 'hidden',
+  },
+  bookCoverImage: {
+      width: '100%',
+      height: '100%',
+      borderRadius: 16,
   },
   cardStack: {
       position: 'absolute',

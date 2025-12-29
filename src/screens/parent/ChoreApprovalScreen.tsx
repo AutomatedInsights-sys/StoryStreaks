@@ -18,8 +18,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { NotificationService } from '../../services/notificationService';
 import { aiStoryService } from '../../services/aiStoryService';
-import { ChoreCompletion, Chore, Child } from '../../types';
+import { ChoreCompletion, Chore, Child, StoryWorld } from '../../types';
 import { theme } from '../../utils/theme';
+import ThemeSelectionModal from '../../components/shared/ThemeSelectionModal';
 
 interface ChoreCompletionWithDetails extends ChoreCompletion {
   chore: Chore;
@@ -34,6 +35,10 @@ export default function ChoreApprovalScreen() {
   const [selectedCompletion, setSelectedCompletion] = useState<ChoreCompletionWithDetails | null>(null);
   const [parentNotes, setParentNotes] = useState('');
   const [isApproving, setIsApproving] = useState(false);
+  
+  // Theme selection state for when a story book is completed
+  const [showThemeSelection, setShowThemeSelection] = useState(false);
+  const [pendingChildForNewStory, setPendingChildForNewStory] = useState<Child | null>(null);
 
   const fetchPendingCompletions = async () => {
     console.log('🔍 ChoreApproval: Fetching pending completions...');
@@ -88,6 +93,36 @@ export default function ChoreApprovalScreen() {
     fetchPendingCompletions();
   };
 
+  // Handle theme selection for new story book
+  const handleThemeSelection = async (selectedTheme: StoryWorld) => {
+    if (!pendingChildForNewStory) return;
+    
+    try {
+      console.log('📚 Starting new book with theme:', selectedTheme, 'for child:', pendingChildForNewStory.name);
+      const newBook = await aiStoryService.startNewBook(pendingChildForNewStory.id, selectedTheme);
+      
+      if (newBook) {
+        Alert.alert(
+          '🎉 New Adventure Started!',
+          `"${newBook.title}" is ready for ${pendingChildForNewStory.name}! They'll unlock Chapter 1 with their next approved chore.`,
+          [{ text: 'Awesome!', onPress: () => {} }]
+        );
+      } else {
+        Alert.alert(
+          'Oops!',
+          'Could not start the new story. Please try again later.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error starting new book:', error);
+      Alert.alert('Error', 'Failed to start new story book.');
+    } finally {
+      setShowThemeSelection(false);
+      setPendingChildForNewStory(null);
+    }
+  };
+
   const handleApprove = async (completionId: string, approved: boolean) => {
     setIsApproving(true);
     
@@ -127,15 +162,33 @@ export default function ChoreApprovalScreen() {
         // Generate story for approved chore
         try {
           console.log('📚 Generating story for approved chore:', completionId);
-          const newChapter = await aiStoryService.unlockStoryForChores(
+          const result = await aiStoryService.unlockStoryForChores(
             selectedCompletion.child_id,
             [completionId]
           );
           
-          if (newChapter) {
-            console.log('📚 Story generated successfully:', newChapter.title);
-          } else {
-            console.warn('📚 Story generation failed, but chore was approved');
+          switch (result.status) {
+            case 'chapter_generated':
+              console.log('📚 Story chapter generated successfully:', result.chapter?.title);
+              break;
+              
+            case 'book_completed':
+              console.log('📚 Story book completed! New theme selection needed.');
+              // Show celebration and prompt for new theme selection
+              setPendingChildForNewStory(selectedCompletion.child);
+              setShowThemeSelection(true);
+              break;
+              
+            case 'needs_new_book':
+              console.log('📚 No active book found, prompting for theme selection.');
+              // Prompt for theme selection to start a new book
+              setPendingChildForNewStory(selectedCompletion.child);
+              setShowThemeSelection(true);
+              break;
+              
+            case 'error':
+              console.warn('📚 Story generation failed:', result.error);
+              break;
           }
         } catch (error) {
           console.error('📚 Story generation error:', error);
@@ -360,6 +413,17 @@ export default function ChoreApprovalScreen() {
       </ScrollView>
 
       {renderDetailModal()}
+
+      {/* Theme Selection Modal for new story */}
+      <ThemeSelectionModal
+        visible={showThemeSelection}
+        childName={pendingChildForNewStory?.name || ''}
+        onSelectTheme={handleThemeSelection}
+        onClose={() => {
+          setShowThemeSelection(false);
+          setPendingChildForNewStory(null);
+        }}
+      />
     </SafeAreaView>
   );
 }

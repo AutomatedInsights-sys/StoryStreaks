@@ -132,6 +132,7 @@ export interface StoryBook {
   total_chapters: number;
   current_chapter: number;
   outline: StoryChapterOutline[];
+  cover_image?: string; // Premium cover image selected when book is created
   created_at: string;
   completed_at?: string;
   updated_at: string;
@@ -261,6 +262,7 @@ export interface StoryGenerationRequest {
   bookId?: string;
   chapterSynopsis?: string;
   chapterTitle?: string;
+  bookCoverImage?: string; // The book's premium cover image (same for all chapters)
 }
 
 export interface StoryGenerationResponse {
@@ -268,6 +270,14 @@ export interface StoryGenerationResponse {
   chapter?: StoryChapter;
   error?: string;
   fallbackUsed?: boolean;
+}
+
+// Result from unlocking a story for chores
+export interface StoryUnlockResult {
+  status: 'chapter_generated' | 'book_completed' | 'needs_new_book' | 'error';
+  chapter?: StoryChapter;
+  completedBookId?: string; // The ID of the book that was just completed
+  error?: string;
 }
 
 export interface StoryOutlineRequest {
