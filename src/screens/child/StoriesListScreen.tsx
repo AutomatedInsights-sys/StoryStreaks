@@ -65,7 +65,9 @@ export default function StoriesListScreen({ navigation, route }: any) {
         .eq('child_id', currentChild.id);
 
       if (book) {
-        query = query.eq('story_book_id', book.id);
+        query = query.or(
+          `story_book_id.eq.${book.id},and(story_book_id.is.null,world_theme.eq.${book.theme})`
+        );
       } else {
         // If no book found, show all chapters (legacy + completed books)
       }
