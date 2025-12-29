@@ -8,38 +8,57 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../services/supabase';
 import { aiStoryService } from '../../services/aiStoryService';
-import { StoryChapter, StoryBook } from '../../types';
+import { StoryChapter, StoryBook, StoryWorld } from '../../types';
 import { theme } from '../../utils/theme';
+import ThemeSelectionModal from '../../components/shared/ThemeSelectionModal';
 
-export default function StoriesListScreen({ navigation }: any) {
+export default function StoriesListScreen({ navigation, route }: any) {
   const { currentChild } = useAuth();
   const [chapters, setChapters] = useState<StoryChapter[]>([]);
   const [activeBook, setActiveBook] = useState<StoryBook | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isStartingBook, setIsStartingBook] = useState(false);
+  const [showThemeSelection, setShowThemeSelection] = useState(false);
+
+  // Get bookId from route params if passed (when clicking a specific book)
+  const specificBookId = route?.params?.bookId;
 
   const fetchData = async () => {
     if (!currentChild?.id) return;
 
     try {
-      // 1. Fetch Active Book
-      const { data: book } = await supabase
-        .from('story_books')
-        .select('*')
-        .eq('child_id', currentChild.id)
-        .eq('status', 'active')
-        .single();
+      let book: StoryBook | null = null;
+
+      // If a specific book ID was passed, fetch that book
+      if (specificBookId) {
+        const { data: specificBook } = await supabase
+          .from('story_books')
+          .select('*')
+          .eq('id', specificBookId)
+          .single();
+        book = specificBook;
+      } else {
+        // Otherwise, fetch the active book
+        const { data: activeBookData } = await supabase
+          .from('story_books')
+          .select('*')
+          .eq('child_id', currentChild.id)
+          .eq('status', 'active')
+          .single();
+        book = activeBookData;
+      }
       
       setActiveBook(book);
 
-      // 2. Fetch Chapters
+      // 2. Fetch Chapters for the selected book
       let query = supabase
         .from('story_chapters')
         .select('*')
@@ -48,10 +67,7 @@ export default function StoriesListScreen({ navigation }: any) {
       if (book) {
         query = query.eq('story_book_id', book.id);
       } else {
-        // If no active book, show all chapters (legacy + completed books)
-        // Or maybe just legacy? For now, show all to be safe.
-        // Actually, if we have completed books, we might want to group them.
-        // For this version, let's just show everything if no active book.
+        // If no book found, show all chapters (legacy + completed books)
       }
 
       query = query.order('chapter_number', { ascending: true });
@@ -77,7 +93,7 @@ export default function StoriesListScreen({ navigation }: any) {
   useFocusEffect(
     useCallback(() => {
       fetchData();
-    }, [currentChild?.id])
+    }, [currentChild?.id, specificBookId])
   );
 
   const onRefresh = () => {
@@ -85,13 +101,20 @@ export default function StoriesListScreen({ navigation }: any) {
     fetchData();
   };
 
-  const handleStartBook = async () => {
+  const handleStartBook = () => {
+    if (!currentChild) return;
+    // Show theme selection modal instead of automatically using the child's current theme
+    setShowThemeSelection(true);
+  };
+
+  const handleThemeSelection = async (selectedTheme: StoryWorld) => {
     if (!currentChild) return;
     
     setIsStartingBook(true);
     try {
-      const book = await aiStoryService.startNewBook(currentChild.id, currentChild.world_theme);
+      const book = await aiStoryService.startNewBook(currentChild.id, selectedTheme);
       if (book) {
+        setShowThemeSelection(false);
         Alert.alert('New Adventure Started!', `"${book.title}" is ready. Complete chores to unlock Chapter 1!`);
         fetchData();
       } else {
@@ -170,20 +193,44 @@ export default function StoriesListScreen({ navigation }: any) {
       style={styles.chapterCard}
       onPress={() => navigation.navigate('StoryReader', { chapterId: chapter.id })}
     >
-      <View style={styles.chapterHeader}>
-        <Text style={styles.chapterEmoji}>
-          {getWorldThemeEmoji(chapter.world_theme)}
-        </Text>
-        <View style={styles.chapterTitleContainer}>
+      {/* Premium Cover Image or Fallback Emoji */}
+      {chapter.image_url ? (
+        <View style={styles.chapterCoverContainer}>
+          <Image 
+            source={{ uri: chapter.image_url }} 
+            style={styles.chapterCoverImage}
+            resizeMode="cover"
+          />
+          {!chapter.is_read && (
+            <View style={styles.newBadgeOverlay}>
+              <Text style={styles.newText}>NEW</Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={styles.chapterHeader}>
+          <Text style={styles.chapterEmoji}>
+            {getWorldThemeEmoji(chapter.world_theme)}
+          </Text>
+          <View style={styles.chapterTitleContainer}>
+            <Text style={styles.chapterTitle}>{chapter.title}</Text>
+            <Text style={styles.chapterNumber}>Chapter {chapter.chapter_number}</Text>
+          </View>
+          {!chapter.is_read && (
+            <View style={styles.newBadge}>
+              <Text style={styles.newText}>NEW</Text>
+            </View>
+          )}
+        </View>
+      )}
+      
+      {/* Title below image if we have a cover */}
+      {chapter.image_url && (
+        <View style={styles.chapterInfoBelowImage}>
           <Text style={styles.chapterTitle}>{chapter.title}</Text>
           <Text style={styles.chapterNumber}>Chapter {chapter.chapter_number}</Text>
         </View>
-        {!chapter.is_read && (
-          <View style={styles.newBadge}>
-            <Text style={styles.newText}>NEW</Text>
-          </View>
-        )}
-      </View>
+      )}
       
       <Text style={styles.chapterPreview} numberOfLines={2}>
         {chapter.content.substring(0, 100)}...
@@ -253,6 +300,15 @@ export default function StoriesListScreen({ navigation }: any) {
           </View>
         )}
       </ScrollView>
+
+      {/* Theme Selection Modal for new story book */}
+      <ThemeSelectionModal
+        visible={showThemeSelection}
+        childName={currentChild?.name || ''}
+        onSelectTheme={handleThemeSelection}
+        onClose={() => setShowThemeSelection(false)}
+        isLoading={isStartingBook}
+      />
     </SafeAreaView>
   );
 }
@@ -463,6 +519,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.8,
+  },
+  // Premium cover image styles
+  chapterCoverContainer: {
+    width: '100%',
+    height: 180,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: theme.spacing.md,
+    position: 'relative',
+  },
+  chapterCoverImage: {
+    width: '100%',
+    height: '100%',
+  },
+  newBadgeOverlay: {
+    position: 'absolute',
+    top: theme.spacing.md,
+    right: theme.spacing.md,
+    backgroundColor: '#00C9FF',
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: 999,
+    shadowColor: '#00C9FF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  chapterInfoBelowImage: {
+    marginBottom: theme.spacing.md,
   },
   chapterPreview: {
     fontSize: 16,
