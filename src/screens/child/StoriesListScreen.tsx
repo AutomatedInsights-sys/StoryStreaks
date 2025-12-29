@@ -46,7 +46,9 @@ export default function StoriesListScreen({ navigation }: any) {
         .eq('child_id', currentChild.id);
 
       if (book) {
-        query = query.eq('story_book_id', book.id);
+        query = query.or(
+          `story_book_id.eq.${book.id},and(story_book_id.is.null,world_theme.eq.${book.theme})`
+        );
       } else {
         // If no active book, show all chapters (legacy + completed books)
         // Or maybe just legacy? For now, show all to be safe.
